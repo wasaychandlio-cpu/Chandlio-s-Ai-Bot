@@ -34,20 +34,20 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
 .stMarkdown img, [data-testid="stImage"] img { max-width: 100% !important; height: auto; }
 .stMarkdown a { word-break: break-all; }
 
-/* ---------- Claude-style input bar (medium size, centered, sticks to the bottom) ---------- */
+/* ---------- Claude-style input bar (small, centered, sticks to the bottom) ---------- */
 /* make the wrapper around the bar "disappear" so sticky works against the chat column */
 [data-testid="stLayoutWrapper"]:has(> .st-key-inputbar),
 [data-testid="stElementContainer"]:has(> .st-key-inputbar) { display: contents !important; }
 
 .st-key-inputbar {
     position: sticky !important; bottom: 1rem; z-index: 999;
-    width: 100%; max-width: 700px; margin: 1rem auto 0 auto;
-    background: #2b2b2b; border: 1px solid #3d3d3d; border-radius: 22px;
-    padding: 10px 14px 8px 14px; max-height: 75vh; overflow-y: auto;
+    width: 100%; max-width: 620px; margin: 1rem auto 0 auto;
+    background: #2b2b2b; border: 1px solid #3d3d3d; border-radius: 20px;
+    padding: 6px 12px 4px 12px; max-height: 75vh; overflow-y: auto;
     box-shadow: 0 4px 24px rgba(0,0,0,0.45);
 }
 
-/* text area: no inner box, no resize handle, no hint text */
+/* text area: no inner box, no resize handle, no hint text, compact height */
 .st-key-inputbar .stTextArea,
 .st-key-inputbar .stTextArea > div,
 .st-key-inputbar .stTextArea > div > div,
@@ -55,9 +55,14 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
 .st-key-inputbar [data-baseweb="base-input"] {
     background: transparent !important; border: none !important; box-shadow: none !important;
 }
+.st-key-inputbar .stTextArea [data-baseweb="textarea"],
+.st-key-inputbar .stTextArea [data-baseweb="base-input"],
+.st-key-inputbar .stTextArea textarea {
+    height: 44px !important; min-height: 44px !important;
+}
 .st-key-inputbar .stTextArea textarea {
     background: transparent !important; border: none !important; box-shadow: none !important;
-    resize: none !important; font-size: 1.05rem !important; color: #ffffff !important;
+    resize: none !important; font-size: 1rem !important; color: #ffffff !important;
     padding: 4px 4px !important;
 }
 .st-key-inputbar .stTextArea textarea::placeholder { color: #8a8a8a !important; }
@@ -72,7 +77,7 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
 /* plus + mic popover buttons */
 .st-key-inputbar [data-testid="stPopover"] button {
     background: transparent !important; border: none !important;
-    color: #ffffff !important; font-size: 1.3rem !important; padding: 0 0.4rem !important; min-height: 2rem !important;
+    color: #ffffff !important; font-size: 1.3rem !important; padding: 0 0.4rem !important; min-height: 1.9rem !important;
 }
 .st-key-plus_wrap [data-testid="stPopover"] button svg,
 .st-key-plus_wrap [data-testid="stPopover"] button [data-testid="stIconMaterial"] { display: none !important; }
@@ -81,26 +86,32 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
 /* Chat pill */
 .chat-pill {
     display: inline-flex; align-items: center; background: #3d3d3d; color: #ffffff;
-    border: 1px solid #4a4a4a; border-radius: 10px; padding: 3px 16px; font-size: 0.95rem; margin: 0;
+    border: 1px solid #4a4a4a; border-radius: 10px; padding: 2px 14px; font-size: 0.9rem; margin: 0;
 }
 
 /* send button */
 .st-key-send_btn button {
     background: #d97757 !important; border: none !important; border-radius: 50% !important;
-    width: 2.1rem !important; height: 2.1rem !important; min-height: 0 !important;
-    padding: 0 !important; color: #fff !important; font-size: 1.1rem !important; line-height: 1 !important;
+    width: 2rem !important; height: 2rem !important; min-height: 0 !important;
+    padding: 0 !important; color: #fff !important; font-size: 1.05rem !important; line-height: 1 !important;
 }
 
 /* ---------- Plus menu (popover body) ---------- */
-[data-testid="stPopoverBody"] { background: #2b2b2b !important; border: 1px solid #3d3d3d !important; border-radius: 16px !important; min-width: 300px; }
+[data-testid="stPopoverBody"] { background: #2b2b2b !important; border: 1px solid #3d3d3d !important; border-radius: 16px !important; min-width: 320px; padding: 0.5rem !important; }
+[data-testid="stPopoverBody"] hr { margin: 0.35rem 0 !important; border-color: #3d3d3d !important; }
+[data-testid="stPopoverBody"] [data-testid="stElementContainer"] { margin: 0 !important; }
 [class*="st-key-menu_"] button {
     display: flex !important; justify-content: flex-start !important; text-align: left !important;
     background: transparent !important; border: none !important; color: #ffffff !important;
-    padding: 0.55rem 0.7rem !important; border-radius: 10px !important; font-size: 1rem !important;
+    padding: 0.5rem 0.7rem !important; border-radius: 10px !important; font-size: 1rem !important;
 }
 [class*="st-key-menu_"] button:hover { background: #3a3a3a !important; }
 .st-key-menu_upload button::after { content: "Ctrl+U"; margin-left: auto; color: #9a9a9a; font-size: 0.9rem; padding-left: 2rem; }
-.st-key-menu_project button::after { content: "›"; margin-left: auto; color: #aaaaaa; font-size: 1.5rem; padding-left: 2rem; }
+.st-key-menu_project button::after,
+.st-key-menu_skills button::after,
+.st-key-menu_connector button::after,
+.st-key-menu_design button::after { content: "›"; margin-left: auto; color: #aaaaaa; font-size: 1.5rem; padding-left: 2rem; }
+.st-key-menu_web_on button::after { content: "✓"; margin-left: auto; color: #4a9eff; font-size: 1.25rem; padding-left: 2rem; }
 .st-key-hidden_upload { display: none; }
 
 /* ---------- Visible page up/down scrollbar on the right side ---------- */
@@ -212,7 +223,8 @@ defaults = {
     "chat_project": {},      # chat name -> project name
     "attachments": [],       # files waiting to be sent with the next message
     "panel": None,           # "screenshot" | "upload" | "newproject" | None
-    "menu_view": "main",     # "main" | "project"
+    "menu_view": "main",     # "main" | "project" | "skills" | "connector" | "design"
+    "web_search": True,      # Web search toggle in the + menu
     "shot_trigger": 0,
     "last_shot_id": None,
     "pending_prompt": None,
@@ -300,6 +312,12 @@ def start_screenshot():
 
 def set_menu_view(view):
     st.session_state["menu_view"] = view
+
+def toggle_web_search():
+    st.session_state["web_search"] = not st.session_state["web_search"]
+
+def show_plugins_note():
+    st.session_state["toast"] = "No plugins available yet."
 
 def close_panel():
     st.session_state["panel"] = None
@@ -488,7 +506,7 @@ def render_input_bar():
 
         # ----- Text box (Enter sends, Shift+Enter = new line) -----
         st.text_area("Message", key="msg_box", placeholder="How can I help you today?",
-                     height=70, label_visibility="collapsed")
+                     height=68, label_visibility="collapsed")
 
         # ----- Bottom row: + | Chat | ... | mic | send -----
         c_plus, c_chat, c_space, c_mic, c_send = st.columns([1, 2, 6, 1.5, 1.2], vertical_alignment="center")
@@ -496,14 +514,28 @@ def render_input_bar():
         with c_plus:
             with st.container(key="plus_wrap"):
                 with st.popover("＋"):
-                    if st.session_state["menu_view"] == "main":
+                    view = st.session_state["menu_view"]
+                    if view == "main":
                         st.button("Upload or add files", icon=":material/attach_file:", key="menu_upload",
                                   use_container_width=True, on_click=set_panel, args=("upload",))
                         st.button("Take a screenshot", icon=":material/photo_camera:", key="menu_shot",
                                   use_container_width=True, on_click=start_screenshot)
                         st.button("Add to project", icon=":material/inventory_2:", key="menu_project",
                                   use_container_width=True, on_click=set_menu_view, args=("project",))
-                    else:
+                        st.divider()
+                        st.button("Skills", icon=":material/receipt_long:", key="menu_skills",
+                                  use_container_width=True, on_click=set_menu_view, args=("skills",))
+                        st.button("Add connector", icon=":material/extension:", key="menu_connector",
+                                  use_container_width=True, on_click=set_menu_view, args=("connector",))
+                        st.button("Design system", icon=":material/palette:", key="menu_design",
+                                  use_container_width=True, on_click=set_menu_view, args=("design",))
+                        st.button("Add plugins", icon=":material/power:", key="menu_plugins",
+                                  use_container_width=True, on_click=show_plugins_note)
+                        st.divider()
+                        st.button("Web search", icon=":material/language:",
+                                  key="menu_web_on" if st.session_state["web_search"] else "menu_web_off",
+                                  use_container_width=True, on_click=toggle_web_search)
+                    elif view == "project":
                         st.button("Back", icon=":material/arrow_back:", key="menu_back",
                                   use_container_width=True, on_click=set_menu_view, args=("main",))
                         for i, pname in enumerate(st.session_state["projects"].keys()):
@@ -511,6 +543,15 @@ def render_input_bar():
                                       use_container_width=True, on_click=add_to_project, args=(pname,))
                         st.button("New project", icon=":material/add:", key="menu_newproject",
                                   use_container_width=True, on_click=set_panel, args=("newproject",))
+                    else:
+                        st.button("Back", icon=":material/arrow_back:", key="menu_back",
+                                  use_container_width=True, on_click=set_menu_view, args=("main",))
+                        notes = {
+                            "skills": "No skills added yet.",
+                            "connector": "No connectors available yet.",
+                            "design": "No design systems yet.",
+                        }
+                        st.caption(notes.get(view, ""))
 
         with c_chat:
             st.markdown("<div class='chat-pill'>Chat</div>", unsafe_allow_html=True)
