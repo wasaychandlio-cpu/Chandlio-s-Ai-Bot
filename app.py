@@ -27,47 +27,73 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
 .stChatMessage.user { background-color: #252525; border-radius: 12px; color: #ffffff; }
 .stChatMessage.assistant { background-color: #191919; border: 1px solid #2a2a2a; border-radius: 12px; color: #ffffff; }
 
-/* ---------- Claude-style input bar ---------- */
-.block-container { padding-bottom: 280px !important; }
+/* ---------- Fit screen: everything must fit inside the centered column ---------- */
+.block-container { padding-top: 3rem !important; padding-bottom: 220px !important; }
+.stMarkdown table { display: block; max-width: 100%; overflow-x: auto; }
+.stMarkdown pre, .stMarkdown code { white-space: pre-wrap !important; word-break: break-word; }
+.stMarkdown img, [data-testid="stImage"] img { max-width: 100% !important; height: auto; }
+.stMarkdown a { word-break: break-all; }
 
+/* ---------- Claude-style input bar (medium size, centered) ---------- */
 .st-key-inputbar {
-    position: fixed; bottom: 1.2rem; left: 21rem; right: 1rem;
-    max-width: 820px; margin: 0 auto; z-index: 999;
-    background: #2b2b2b; border: 1px solid #3d3d3d; border-radius: 24px;
-    padding: 12px 16px 10px 16px; max-height: 75vh; overflow-y: auto;
+    position: fixed; bottom: 1rem; left: 0; right: 0; margin: 0 auto; z-index: 999;
+    width: min(700px, calc(100% - 2rem));
+    background: #2b2b2b; border: 1px solid #3d3d3d; border-radius: 22px;
+    padding: 10px 14px 8px 14px; max-height: 75vh; overflow-y: auto;
     box-shadow: 0 4px 24px rgba(0,0,0,0.45);
 }
-@media (max-width: 900px) { .st-key-inputbar { left: 1rem; } }
+/* when the sidebar is open, center the bar in the remaining space */
+.stApp:has(section[data-testid="stSidebar"][aria-expanded="true"]) .st-key-inputbar {
+    left: 21rem; width: min(700px, calc(100% - 21rem - 2rem));
+}
+@media (max-width: 900px) {
+    .stApp:has(section[data-testid="stSidebar"][aria-expanded="true"]) .st-key-inputbar {
+        left: 0; width: calc(100% - 2rem);
+    }
+}
 
+/* text area: no inner box, no resize handle, no hint text */
+.st-key-inputbar .stTextArea,
+.st-key-inputbar .stTextArea > div,
+.st-key-inputbar .stTextArea > div > div,
 .st-key-inputbar [data-baseweb="textarea"],
-.st-key-inputbar [data-baseweb="base-input"] { background: transparent !important; border: none !important; }
+.st-key-inputbar [data-baseweb="base-input"] {
+    background: transparent !important; border: none !important; box-shadow: none !important;
+}
 .st-key-inputbar .stTextArea textarea {
-    background: transparent !important; border: none !important;
-    box-shadow: none !important; font-size: 1.1rem !important; color: #ffffff !important;
+    background: transparent !important; border: none !important; box-shadow: none !important;
+    resize: none !important; font-size: 1.05rem !important; color: #ffffff !important;
+    padding: 4px 4px !important;
 }
 .st-key-inputbar .stTextArea textarea::placeholder { color: #8a8a8a !important; }
+.st-key-inputbar [data-testid="InputInstructions"],
+.st-key-inputbar [data-testid="stTextAreaInstructions"] { display: none !important; }
 
-.st-key-inputbar [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: 0.4rem !important; }
+/* keep the button row on one line (also on mobile) */
+.st-key-inputbar [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: 0.3rem !important; align-items: center !important; }
 .st-key-inputbar [data-testid="stColumn"] { min-width: 0 !important; }
+.st-key-inputbar [data-testid="stElementContainer"] { margin: 0 !important; }
 
 /* plus + mic popover buttons */
 .st-key-inputbar [data-testid="stPopover"] button {
     background: transparent !important; border: none !important;
-    color: #ffffff !important; font-size: 1.4rem !important; padding: 0 0.5rem !important;
+    color: #ffffff !important; font-size: 1.3rem !important; padding: 0 0.4rem !important; min-height: 2rem !important;
 }
-.st-key-plus_wrap [data-testid="stPopover"] button svg { display: none; }
+.st-key-plus_wrap [data-testid="stPopover"] button svg,
+.st-key-plus_wrap [data-testid="stPopover"] button [data-testid="stIconMaterial"] { display: none !important; }
 .st-key-plus_wrap [data-testid="stPopover"] button:hover { background: #3a3a3a !important; border-radius: 10px !important; }
 
 /* Chat pill */
 .chat-pill {
-    display: inline-block; background: #3d3d3d; color: #ffffff; border: 1px solid #4a4a4a;
-    border-radius: 10px; padding: 6px 18px; font-size: 1rem;
+    display: inline-flex; align-items: center; background: #3d3d3d; color: #ffffff;
+    border: 1px solid #4a4a4a; border-radius: 10px; padding: 3px 16px; font-size: 0.95rem; margin: 0;
 }
 
 /* send button */
-.st-key-inputbar button[kind="primary"] {
-    background: #d97757 !important; border: none !important;
-    border-radius: 50% !important; width: 2.4rem; height: 2.4rem; color: #fff !important;
+.st-key-send_btn button {
+    background: #d97757 !important; border: none !important; border-radius: 50% !important;
+    width: 2.1rem !important; height: 2.1rem !important; min-height: 0 !important;
+    padding: 0 !important; color: #fff !important; font-size: 1.1rem !important; line-height: 1 !important;
 }
 
 /* ---------- Plus menu (popover body) ---------- */
@@ -170,6 +196,14 @@ defaults = {
 for k, v in defaults.items():
     if k not in st.session_state:
         st.session_state[k] = v
+
+# Centered, fit-to-screen column (wider only when the artifact workspace is open)
+_col_width = "1400px" if st.session_state["show_workspace"] else "780px"
+st.markdown(
+    f"<style>.block-container {{ max-width: {_col_width} !important; margin: 0 auto !important; "
+    f"padding-left: 1.2rem !important; padding-right: 1.2rem !important; }}</style>",
+    unsafe_allow_html=True,
+)
 
 TEXT_EXT = (".txt", ".md", ".py", ".csv", ".json", ".js", ".html", ".css", ".xml",
             ".yaml", ".yml", ".log", ".sql", ".ini", ".toml")
@@ -384,10 +418,10 @@ def render_input_bar():
 
         # ----- Text box (Enter sends, Shift+Enter = new line) -----
         st.text_area("Message", key="msg_box", placeholder="How can I help you today?",
-                     height=90, label_visibility="collapsed")
+                     height=70, label_visibility="collapsed")
 
         # ----- Bottom row: + | Chat | ... | mic | send -----
-        c_plus, c_chat, c_space, c_mic, c_send = st.columns([1, 2, 6, 1.4, 1.2], vertical_alignment="center")
+        c_plus, c_chat, c_space, c_mic, c_send = st.columns([1, 2, 6, 1.5, 1.2], vertical_alignment="center")
 
         with c_plus:
             with st.container(key="plus_wrap"):
@@ -413,7 +447,7 @@ def render_input_bar():
 
         with c_mic:
             with st.container(key="mic_wrap"):
-                with st.popover("🎤"):
+                with st.popover(" ", icon=":material/mic:"):
                     if hasattr(st, "audio_input"):
                         st.audio_input("Record a voice message", key="mic_audio", on_change=transcribe_audio)
                     else:
@@ -425,11 +459,13 @@ def render_input_bar():
     # Hidden button used by the Ctrl+U shortcut
     st.button("hidden upload", key="hidden_upload", on_click=set_panel, args=("upload",))
 
-    # Enter = send, Shift+Enter = new line, Ctrl+U = upload
+    # Enter = send, Shift+Enter = new line, Ctrl+U = upload, floating page up/down buttons
     components.html("""
     <script>
     (function () {
       var P = window.parent, doc = P.document;
+
+      /* ---- keyboard: Enter sends, Ctrl+U uploads ---- */
       if (P.__chandlioKeys) { doc.removeEventListener("keydown", P.__chandlioKeys, true); }
       P.__chandlioKeys = function (e) {
         var t = e.target;
@@ -449,6 +485,44 @@ def render_input_bar():
         }
       };
       doc.addEventListener("keydown", P.__chandlioKeys, true);
+
+      /* ---- floating page up / page down buttons ---- */
+      var oldBox = doc.getElementById("chandlio-scroll");
+      if (oldBox) oldBox.remove();
+      var oldStyle = doc.getElementById("chandlio-scroll-style");
+      if (oldStyle) oldStyle.remove();
+
+      var styleEl = doc.createElement("style");
+      styleEl.id = "chandlio-scroll-style";
+      styleEl.textContent =
+        "#chandlio-scroll{position:fixed;right:1.2rem;bottom:9rem;display:flex;flex-direction:column;gap:8px;z-index:1000}" +
+        "#chandlio-scroll button{width:38px;height:38px;border-radius:50%;border:1px solid #4a4a4a;background:#2b2b2b;" +
+        "color:#fff;font-size:16px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.4)}" +
+        "#chandlio-scroll button:hover{background:#3d3d3d}";
+      doc.head.appendChild(styleEl);
+
+      function scroller() {
+        return doc.querySelector('[data-testid="stMain"]') || doc.querySelector("section.main") || doc.scrollingElement;
+      }
+      function makeBtn(label, title, dir) {
+        var b = doc.createElement("button");
+        b.textContent = label;
+        b.title = title;
+        b.onclick = function () {
+          var s = scroller();
+          s.scrollBy({top: dir * s.clientHeight * 0.85, behavior: "smooth"});
+        };
+        b.ondblclick = function () {
+          var s = scroller();
+          s.scrollTo({top: dir < 0 ? 0 : s.scrollHeight, behavior: "smooth"});
+        };
+        return b;
+      }
+      var box = doc.createElement("div");
+      box.id = "chandlio-scroll";
+      box.appendChild(makeBtn("▲", "Page up (double-click: jump to first message)", -1));
+      box.appendChild(makeBtn("▼", "Page down (double-click: jump to chatbox)", 1));
+      doc.body.appendChild(box);
     })();
     </script>
     """, height=0)
@@ -561,5 +635,4 @@ try:
 except Exception as e:
     st.error(f"Error: {e}")
 
-# Custom Claude-style input bar (fixed at the bottom)
-render_input_bar()
+# Custom
