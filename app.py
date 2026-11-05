@@ -1,7 +1,11 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import os
 import io
+import base64
 import hashlib
+import pathlib
+import tempfile
 
 # Page configuration
 st.set_page_config(
@@ -35,7 +39,6 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
 }
 @media (max-width: 900px) { .st-key-inputbar { left: 1rem; } }
 
-/* transparent text area inside the bar */
 .st-key-inputbar [data-baseweb="textarea"],
 .st-key-inputbar [data-baseweb="base-input"] { background: transparent !important; border: none !important; }
 .st-key-inputbar .stTextArea textarea {
@@ -44,16 +47,22 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
 }
 .st-key-inputbar .stTextArea textarea::placeholder { color: #8a8a8a !important; }
 
-/* keep the button row on one line (also on mobile) */
 .st-key-inputbar [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: 0.4rem !important; }
 .st-key-inputbar [data-testid="stColumn"] { min-width: 0 !important; }
 
-/* plus / mic popover buttons */
+/* plus + mic popover buttons */
 .st-key-inputbar [data-testid="stPopover"] button {
     background: transparent !important; border: none !important;
     color: #ffffff !important; font-size: 1.4rem !important; padding: 0 0.5rem !important;
 }
-.st-key-inputbar [data-testid="stPopover"] button svg { display: none; }
+.st-key-plus_wrap [data-testid="stPopover"] button svg { display: none; }
+.st-key-plus_wrap [data-testid="stPopover"] button:hover { background: #3a3a3a !important; border-radius: 10px !important; }
+
+/* Chat pill */
+.chat-pill {
+    display: inline-block; background: #3d3d3d; color: #ffffff; border: 1px solid #4a4a4a;
+    border-radius: 10px; padding: 6px 18px; font-size: 1rem;
+}
 
 /* send button */
 .st-key-inputbar button[kind="primary"] {
@@ -61,10 +70,84 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
     border-radius: 50% !important; width: 2.4rem; height: 2.4rem; color: #fff !important;
 }
 
-/* Chat / Cowork toggle */
-.st-key-inputbar [data-testid="stButtonGroup"] button { background: #333 !important; color: #fff !important; border: none !important; }
+/* ---------- Plus menu (popover body) ---------- */
+[data-testid="stPopoverBody"] { background: #2b2b2b !important; border: 1px solid #3d3d3d !important; border-radius: 16px !important; min-width: 300px; }
+[class*="st-key-menu_"] button {
+    display: flex !important; justify-content: flex-start !important; text-align: left !important;
+    background: transparent !important; border: none !important; color: #ffffff !important;
+    padding: 0.55rem 0.7rem !important; border-radius: 10px !important; font-size: 1rem !important;
+}
+[class*="st-key-menu_"] button:hover { background: #3a3a3a !important; }
+.st-key-menu_upload button::after { content: "Ctrl+U"; margin-left: auto; color: #9a9a9a; font-size: 0.9rem; padding-left: 2rem; }
+.st-key-menu_project button::after { content: "›"; margin-left: auto; color: #aaaaaa; font-size: 1.5rem; padding-left: 2rem; }
+.st-key-hidden_upload { display: none; }
 </style>
 """, unsafe_allow_html=True)
+
+# ---------------- SCREEN CAPTURE COMPONENT (browser share picker) ----------------
+SCREEN_CAPTURE_HTML = """<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+  body { margin: 0; font-family: "Source Sans Pro", sans-serif; background: transparent; color: #fff; }
+  #box { display: flex; align-items: center; gap: 12px; padding: 6px 2px; }
+  button { background: #3a3a3a; color: #fff; border: 1px solid #4a4a4a; border-radius: 10px;
+           padding: 8px 14px; font-size: 14px; cursor: pointer; }
+  button:hover { background: #454545; }
+  #msg { font-size: 13px; color: #b5b5b5; }
+</style></head>
+<body>
+<div id="box"><button id="go">📸 Choose what to share</button>
+<span id="msg">Pick a Chrome tab, a window or your entire screen.</span></div>
+<script>
+  var msg = document.getElementById("msg");
+  function send(type, data) {
+    window.parent.postMessage(Object.assign({isStreamlitMessage: true, type: type}, data), "*");
+  }
+  var lastTrigger = null, busy = false;
+  async function capture() {
+    if (busy) return;
+    busy = true;
+    msg.textContent = "Waiting for your selection...";
+    try {
+      var nav = (window.parent && window.parent.navigator) ? window.parent.navigator : navigator;
+      var stream = await nav.mediaDevices.getDisplayMedia({video: true, audio: false});
+      var video = document.createElement("video");
+      video.srcObject = stream; video.muted = true;
+      await video.play();
+      await new Promise(function(r){ setTimeout(r, 500); });
+      var w = video.videoWidth, h = video.videoHeight;
+      var scale = Math.min(1, 1920 / w);
+      var c = document.createElement("canvas");
+      c.width = Math.round(w * scale); c.height = Math.round(h * scale);
+      c.getContext("2d").drawImage(video, 0, 0, c.width, c.height);
+      stream.getTracks().forEach(function(t){ t.stop(); });
+      msg.textContent = "Captured!";
+      send("streamlit:setComponentValue", {value: {id: Date.now(), data: c.toDataURL("image/jpeg", 0.85)}, dataType: "json"});
+    } catch (e) {
+      msg.textContent = "Click the button, then choose a tab, window or screen.";
+    }
+    busy = false;
+  }
+  window.addEventListener("message", function(ev) {
+    if (ev.data && ev.data.type === "streamlit:render") {
+      var t = ev.data.args ? ev.data.args.trigger : null;
+      if (t !== lastTrigger) { lastTrigger = t; capture(); }
+      send("streamlit:setFrameHeight", {height: 52});
+    }
+  });
+  document.getElementById("go").onclick = capture;
+  send("streamlit:componentReady", {apiVersion: 1});
+  send("streamlit:setFrameHeight", {height: 52});
+</script>
+</body></html>
+"""
+
+_COMPONENT_DIR = pathlib.Path(tempfile.gettempdir()) / "chandlio_screen_capture"
+_COMPONENT_DIR.mkdir(parents=True, exist_ok=True)
+_index_file = _COMPONENT_DIR / "index.html"
+if not _index_file.exists() or _index_file.read_text(encoding="utf-8") != SCREEN_CAPTURE_HTML:
+    _index_file.write_text(SCREEN_CAPTURE_HTML, encoding="utf-8")
+screen_capture = components.declare_component("chandlio_screen_capture", path=str(_COMPONENT_DIR))
 
 # ---------------- SESSION STATE ----------------
 defaults = {
@@ -76,12 +159,13 @@ defaults = {
     "projects": {},          # project name -> {"description": str, "files": [ {name,type,data} ]}
     "chat_project": {},      # chat name -> project name
     "attachments": [],       # files waiting to be sent with the next message
-    "panel": None,           # "screenshot" | "upload" | "project" | None
+    "panel": None,           # "screenshot" | "upload" | "newproject" | None
+    "menu_view": "main",     # "main" | "project"
+    "shot_trigger": 0,
+    "last_shot_id": None,
     "pending_prompt": None,
     "msg_box": "",
     "upload_nonce": 0,
-    "cam_nonce": 0,
-    "project_tab": "Add to project",
 }
 for k, v in defaults.items():
     if k not in st.session_state:
@@ -102,9 +186,13 @@ def file_to_text(f, limit=6000):
     name = f["name"].lower()
     try:
         if name.endswith(".pdf"):
-            from pypdf import PdfReader  # optional: add `pypdf` to requirements.txt
+            from pypdf import PdfReader
             reader = PdfReader(io.BytesIO(f["data"]))
             text = "\n".join((p.extract_text() or "") for p in reader.pages)
+        elif name.endswith(".docx"):
+            from docx import Document
+            doc = Document(io.BytesIO(f["data"]))
+            text = "\n".join(p.text for p in doc.paragraphs)
         elif name.endswith(TEXT_EXT):
             text = f["data"].decode("utf-8", errors="ignore")
         else:
@@ -126,11 +214,8 @@ def message_text(m):
                 text += f"\n\n[Attached file: {f['name']} (content could not be read)]"
     return text
 
-def build_system_prompt(mode):
+def build_system_prompt():
     base = "You are a helpful, direct, premium AI assistant modeled after Claude."
-    if mode == "Cowork":
-        base += (" You are in Cowork mode: act as a hands-on collaborator. Break the task into a short plan, "
-                 "then deliver complete, ready-to-use work products (documents, code, structured output).")
     proj = st.session_state["chat_project"].get(st.session_state["current_chat"])
     if proj and proj in st.session_state["projects"]:
         p = st.session_state["projects"][proj]
@@ -144,8 +229,20 @@ def build_system_prompt(mode):
     return base
 
 # ---------------- CALLBACKS ----------------
-def open_panel(name):
-    st.session_state["panel"] = None if st.session_state["panel"] == name else name
+def set_panel(name):
+    st.session_state["panel"] = name
+    st.session_state["menu_view"] = "main"
+
+def start_screenshot():
+    st.session_state["panel"] = "screenshot"
+    st.session_state["shot_trigger"] += 1
+    st.session_state["menu_view"] = "main"
+
+def set_menu_view(view):
+    st.session_state["menu_view"] = view
+
+def close_panel():
+    st.session_state["panel"] = None
 
 def send_message():
     text = st.session_state["msg_box"].strip()
@@ -157,7 +254,6 @@ def remove_attachment(i):
     if 0 <= i < len(st.session_state["attachments"]):
         st.session_state["attachments"].pop(i)
     st.session_state["upload_nonce"] += 1
-    st.session_state["cam_nonce"] += 1
 
 def create_project():
     name = st.session_state.get("new_project_name", "").strip()
@@ -175,23 +271,19 @@ def create_project():
     st.session_state["new_project_name"] = ""
     st.session_state["new_project_desc"] = ""
     st.session_state["panel"] = None
+    st.session_state["menu_view"] = "main"
     st.session_state["toast"] = f"Project '{name}' created and linked to this chat."
 
-def add_to_project():
-    proj = st.session_state.get("project_pick")
-    if not proj or proj not in st.session_state["projects"]:
+def add_to_project(proj):
+    if proj not in st.session_state["projects"]:
         return
     st.session_state["chat_project"][st.session_state["current_chat"]] = proj
     files = st.session_state["projects"][proj]["files"]
     for a in st.session_state["attachments"]:
         if not any(f["name"] == a["name"] and len(f["data"]) == len(a["data"]) for f in files):
             files.append(a)
-    st.session_state["panel"] = None
+    st.session_state["menu_view"] = "main"
     st.session_state["toast"] = f"Added to project '{proj}'."
-
-def open_new_project_from_sidebar():
-    st.session_state["panel"] = "project"
-    st.session_state["project_tab"] = "New project"
 
 def link_chat_to_project(proj):
     st.session_state["chat_project"][st.session_state["current_chat"]] = proj
@@ -231,7 +323,7 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("<p style='color: #aaaaaa; font-weight: bold;'>📁 Projects</p>", unsafe_allow_html=True)
     st.button("➕ New Project", use_container_width=True, key="side_new_project",
-              on_click=open_new_project_from_sidebar)
+              on_click=set_panel, args=("newproject",))
     active_proj = st.session_state["chat_project"].get(st.session_state["current_chat"])
     for pname, pdata in st.session_state["projects"].items():
         label = f"{'✅ ' if pname == active_proj else '📁 '}{pname} ({len(pdata['files'])})"
@@ -254,15 +346,18 @@ def render_input_bar():
         # ----- Panels opened from the + menu -----
         if panel == "screenshot":
             st.markdown("**📸 Take a screenshot**")
-            shot = st.camera_input("Capture with your camera", key=f"cam_{st.session_state['cam_nonce']}")
-            if shot is not None:
-                data = shot.getvalue()
-                add_attachment(f"capture_{hashlib.md5(data).hexdigest()[:6]}.png", shot.type, data)
-            st.caption("To capture your screen: press Win+Shift+S (Windows) / Cmd+Shift+4 (Mac), then upload it here.")
-            shots = st.file_uploader("Upload a screenshot", type=["png", "jpg", "jpeg", "webp"],
-                                     accept_multiple_files=True, key=f"shotup_{st.session_state['upload_nonce']}")
-            for f in shots or []:
-                add_attachment(f.name, f.type, f.getvalue())
+            res = screen_capture(trigger=st.session_state["shot_trigger"], key="screen_capture", default=None)
+            if isinstance(res, dict) and res.get("data") and res.get("id") != st.session_state["last_shot_id"]:
+                st.session_state["last_shot_id"] = res["id"]
+                try:
+                    raw = base64.b64decode(res["data"].split(",", 1)[1])
+                    add_attachment(f"screenshot_{hashlib.md5(raw).hexdigest()[:6]}.jpg", "image/jpeg", raw)
+                    st.session_state["toast"] = "Screenshot added."
+                except Exception as e:
+                    st.session_state["toast"] = f"Screenshot failed: {e}"
+                st.session_state["panel"] = None
+                st.rerun()
+            st.button("✕ Close", key="close_shot", on_click=close_panel)
 
         elif panel == "upload":
             st.markdown("**📎 Upload or add files**")
@@ -270,61 +365,93 @@ def render_input_bar():
                                      key=f"uploader_{st.session_state['upload_nonce']}")
             for f in files or []:
                 add_attachment(f.name, f.type, f.getvalue())
+            st.button("✕ Close", key="close_upload", on_click=close_panel)
 
-        elif panel == "project":
-            st.markdown("**📁 Projects**")
-            st.radio("Project action", ["Add to project", "New project"], key="project_tab",
-                     horizontal=True, label_visibility="collapsed")
-            if st.session_state["project_tab"] == "Add to project":
-                if st.session_state["projects"]:
-                    st.selectbox("Choose a project", list(st.session_state["projects"].keys()), key="project_pick")
-                    st.caption("Links this chat to the project and saves any attached files into it.")
-                    st.button("Add to project", on_click=add_to_project, key="do_add_project")
-                else:
-                    st.info("No projects yet. Switch to 'New project' to create one.")
-            else:
-                st.text_input("Project name", key="new_project_name", placeholder="e.g. Trading Bot")
-                st.text_area("Description (optional)", key="new_project_desc", height=80,
-                             placeholder="What is this project about?")
+        elif panel == "newproject":
+            st.markdown("**📁 New project**")
+            st.text_input("Project name", key="new_project_name", placeholder="e.g. Trading Bot")
+            st.text_area("Description (optional)", key="new_project_desc", height=80,
+                         placeholder="What is this project about?")
+            c1, c2 = st.columns(2)
+            with c1:
                 st.button("Create project", on_click=create_project, key="do_create_project")
+            with c2:
+                st.button("✕ Close", key="close_newproject", on_click=close_panel)
 
         # ----- Attached file chips -----
         for i, a in enumerate(st.session_state["attachments"]):
             st.button(f"📎 {a['name']}  ✕", key=f"rm_{i}", on_click=remove_attachment, args=(i,))
 
-        # ----- Text box -----
+        # ----- Text box (Enter sends, Shift+Enter = new line) -----
         st.text_area("Message", key="msg_box", placeholder="How can I help you today?",
                      height=90, label_visibility="collapsed")
 
-        # ----- Bottom row: + | Chat/Cowork | mic | send -----
-        c_plus, c_mode, c_space, c_mic, c_send = st.columns([1.2, 4, 5, 1.2, 1.2], vertical_alignment="center")
+        # ----- Bottom row: + | Chat | ... | mic | send -----
+        c_plus, c_chat, c_space, c_mic, c_send = st.columns([1, 2, 6, 1.4, 1.2], vertical_alignment="center")
 
         with c_plus:
-            with st.popover("＋"):
-                st.button("📸  Take a screenshot", key="m_shot", use_container_width=True,
-                          on_click=open_panel, args=("screenshot",))
-                st.button("📎  Upload or add files", key="m_upload", use_container_width=True,
-                          on_click=open_panel, args=("upload",))
-                st.button("📁  Add to project", key="m_project", use_container_width=True,
-                          on_click=open_panel, args=("project",))
+            with st.container(key="plus_wrap"):
+                with st.popover("＋"):
+                    if st.session_state["menu_view"] == "main":
+                        st.button("Upload or add files", icon=":material/attach_file:", key="menu_upload",
+                                  use_container_width=True, on_click=set_panel, args=("upload",))
+                        st.button("Take a screenshot", icon=":material/photo_camera:", key="menu_shot",
+                                  use_container_width=True, on_click=start_screenshot)
+                        st.button("Add to project", icon=":material/inventory_2:", key="menu_project",
+                                  use_container_width=True, on_click=set_menu_view, args=("project",))
+                    else:
+                        st.button("Back", icon=":material/arrow_back:", key="menu_back",
+                                  use_container_width=True, on_click=set_menu_view, args=("main",))
+                        for i, pname in enumerate(st.session_state["projects"].keys()):
+                            st.button(pname, icon=":material/folder:", key=f"menu_p_{i}",
+                                      use_container_width=True, on_click=add_to_project, args=(pname,))
+                        st.button("New project", icon=":material/add:", key="menu_newproject",
+                                  use_container_width=True, on_click=set_panel, args=("newproject",))
 
-        with c_mode:
-            if hasattr(st, "segmented_control"):
-                st.segmented_control("Mode", ["Chat", "Cowork"], default="Chat",
-                                     key="mode_sel", label_visibility="collapsed")
-            else:
-                st.radio("Mode", ["Chat", "Cowork"], key="mode_sel", horizontal=True,
-                         label_visibility="collapsed")
+        with c_chat:
+            st.markdown("<div class='chat-pill'>Chat</div>", unsafe_allow_html=True)
 
         with c_mic:
-            with st.popover("🎤"):
-                if hasattr(st, "audio_input"):
-                    st.audio_input("Record a voice message", key="mic_audio", on_change=transcribe_audio)
-                else:
-                    st.caption("Update Streamlit to use voice input.")
+            with st.container(key="mic_wrap"):
+                with st.popover("🎤"):
+                    if hasattr(st, "audio_input"):
+                        st.audio_input("Record a voice message", key="mic_audio", on_change=transcribe_audio)
+                    else:
+                        st.caption("Update Streamlit to use voice input.")
 
         with c_send:
             st.button("↑", key="send_btn", type="primary", on_click=send_message)
+
+    # Hidden button used by the Ctrl+U shortcut
+    st.button("hidden upload", key="hidden_upload", on_click=set_panel, args=("upload",))
+
+    # Enter = send, Shift+Enter = new line, Ctrl+U = upload
+    components.html("""
+    <script>
+    (function () {
+      var P = window.parent, doc = P.document;
+      if (P.__chandlioKeys) { doc.removeEventListener("keydown", P.__chandlioKeys, true); }
+      P.__chandlioKeys = function (e) {
+        var t = e.target;
+        if (e.key === "Enter" && !e.shiftKey && !e.isComposing && t && t.tagName === "TEXTAREA"
+            && t.closest(".st-key-inputbar")) {
+          e.preventDefault(); e.stopPropagation();
+          t.blur();
+          setTimeout(function () {
+            var b = doc.querySelector(".st-key-send_btn button");
+            if (b) b.click();
+          }, 150);
+        }
+        if ((e.ctrlKey || e.metaKey) && (e.key === "u" || e.key === "U")) {
+          e.preventDefault();
+          var h = doc.querySelector(".st-key-hidden_upload button");
+          if (h) h.click();
+        }
+      };
+      doc.addEventListener("keydown", P.__chandlioKeys, true);
+    })();
+    </script>
+    """, height=0)
 
 # ---------------- MAIN WINDOW ----------------
 if st.session_state.get("toast"):
@@ -336,8 +463,6 @@ if not active_key:
     st.markdown("<br><br><h1 style='text-align: center; color: #ffffff;'>⚡ Welcome to Chandlio's AI Bot</h1>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #a1a1aa;'>Please enter your free Groq API key in the left sidebar to unlock the application.</p>", unsafe_allow_html=True)
     st.stop()
-
-mode = st.session_state.get("mode_sel") or "Chat"
 
 try:
     from langchain_groq import ChatGroq
@@ -380,7 +505,6 @@ try:
             st.session_state["attachments"] = []
             st.session_state["panel"] = None
             st.session_state["upload_nonce"] += 1
-            st.session_state["cam_nonce"] += 1
 
             prompt = pending or "(see attached files)"
             current_messages.append({"role": "user", "content": prompt, "files": files})
@@ -403,7 +527,7 @@ try:
                             "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Interlaken_and_Jungfrau_03.jpg/1200px-Interlaken_and_Jungfrau_03.jpg"
                         ]
                     else:
-                        messages_payload = [("system", build_system_prompt(mode))]
+                        messages_payload = [("system", build_system_prompt())]
                         for m in current_messages:
                             messages_payload.append((m["role"], message_text(m)))
                         response = llm.invoke(messages_payload)
@@ -417,7 +541,7 @@ try:
 
             current_messages.append({"role": "assistant", "content": answer, "images": found_images})
 
-            if "```" in answer or len(answer) > 300 or mode == "Cowork":
+            if "```" in answer or len(answer) > 300:
                 st.session_state["show_workspace"] = True
                 st.session_state["workspace_content"] = answer
                 st.rerun()
@@ -438,4 +562,4 @@ except Exception as e:
     st.error(f"Error: {e}")
 
 # Custom Claude-style input bar (fixed at the bottom)
-render_input_bar() 
+render_input_bar()
