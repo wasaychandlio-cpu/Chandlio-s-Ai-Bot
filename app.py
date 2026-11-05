@@ -13,14 +13,28 @@ st.set_page_config(page_title="Chandlio's AI Bot", page_icon="⚡", layout="wide
 
 GREETING = "Let’s have a think"      # <- change the home-screen heading here
 MODEL_LABEL, MODEL_NOTE = "gpt-oss-120b", "Fast"
-ACCOUNT_EMAIL = "mabdulwasay81@gmail.com"
+ACCOUNT_EMAIL = "mabdulwasay81@gmail.com"   # <- shown at the top of the account menu
 
-# Claude-style starburst logo (data URI so the markdown sanitizer keeps it)
+# Home-screen logo: put a logo.png (or .jpg/.webp) next to app.py to use your own swirl,
+# otherwise the Claude-style starburst below is used.
 _STAR_SVG = ('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">'
              '<g stroke="#d97757" stroke-width="3.2" stroke-linecap="round">'
              + "".join(f'<line x1="20" y1="20" x2="20" y2="4" transform="rotate({a} 20 20)"/>' for a in range(0, 360, 30))
              + "</g></svg>")
-STAR_URI = "data:image/svg+xml;base64," + base64.b64encode(_STAR_SVG.encode()).decode()
+
+def _load_logo():
+    try:
+        here = pathlib.Path(__file__).parent
+        for n, mime in (("logo.png", "image/png"), ("logo.jpg", "image/jpeg"),
+                        ("logo.jpeg", "image/jpeg"), ("logo.webp", "image/webp")):
+            p = here / n
+            if p.exists():
+                return f"data:{mime};base64," + base64.b64encode(p.read_bytes()).decode()
+    except Exception:
+        pass
+    return None
+
+STAR_URI = _load_logo() or ("data:image/svg+xml;base64," + base64.b64encode(_STAR_SVG.encode()).decode())
 
 st.markdown("""
 <style>
@@ -90,14 +104,14 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
 [data-testid="stSidebar"] [data-testid="stExpander"] { border: none !important; }
 [data-testid="stSidebar"] .stTextInput input { background: #252525 !important; color: #fff !important; border: 1px solid #333 !important; border-radius: 8px !important; }
 
-/* ---------- Input bar: compact one-row pill docked at the bottom (like Claude) ---------- */
+/* ---------- Input bar: rounded box docked at the bottom (like Claude) ---------- */
 [data-testid="stLayoutWrapper"]:has(> .st-key-inputbar),
 [data-testid="stElementContainer"]:has(> .st-key-inputbar) { display: contents !important; }
 .st-key-inputbar { position: sticky !important; bottom: 0; z-index: 999;
     width: 100%; max-width: 760px; margin: 1rem auto 0 auto;
     background: #191919; padding: .5rem 0 .3rem 0; }
-.st-key-pill { background: #2b2b2b; border: 1px solid #3d3d3d; border-radius: 28px;
-    padding: 8px 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.45); gap: .3rem !important; }
+.st-key-pill { background: #2b2b2b; border: 1px solid #3d3d3d; border-radius: 26px;
+    padding: 8px 12px 8px 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.45); gap: .2rem !important; }
 .st-key-inputbar .stTextArea, .st-key-inputbar .stTextArea > div, .st-key-inputbar .stTextArea > div > div,
 .st-key-inputbar [data-baseweb="textarea"], .st-key-inputbar [data-baseweb="base-input"] {
     background: transparent !important; border: none !important; box-shadow: none !important; }
@@ -105,10 +119,10 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
     height: auto !important; min-height: 44px !important; }
 .st-key-inputbar .stTextArea textarea { background: transparent !important; border: none !important; box-shadow: none !important;
     resize: none !important; font-size: 1.05rem !important; line-height: 1.5 !important; color: #fff !important;
-    padding: 9px 4px !important; height: 44px; min-height: 44px !important; max-height: 200px !important; overflow-y: auto; }
+    padding: 9px 8px !important; height: 44px; min-height: 44px !important; max-height: 200px !important; overflow-y: auto; }
 .st-key-inputbar .stTextArea textarea::placeholder { color: #8a8a8a !important; }
 .st-key-inputbar [data-testid="InputInstructions"], .st-key-inputbar [data-testid="stTextAreaInstructions"] { display: none !important; }
-.st-key-inputbar [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: .3rem !important; align-items: flex-end !important; }
+.st-key-inputbar [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: .3rem !important; align-items: center !important; }
 .st-key-inputbar [data-testid="stColumn"] { min-width: 0 !important; }
 .st-key-inputbar [data-testid="stElementContainer"] { margin: 0 !important; }
 .st-key-inputbar [data-testid="stMarkdownContainer"] p { margin: 0 !important; }
@@ -124,31 +138,48 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
 .st-key-plus_wrap [data-testid="stPopover"] button [data-testid="stIconMaterial"] { display: none !important; }
 .st-key-send_btn button { font-size: 1.3rem !important; }
 
-/* footer under the pill: disclaimer left, model right */
-.input-foot { display: flex; justify-content: space-between; align-items: center; gap: 1rem;
-    padding: .55rem .9rem 0; color: #8a8a8a; font-size: .85rem; }
-.input-foot .mdl { color: #ffffff; white-space: nowrap; }
-.input-foot .mdl b { color: #9a9a9a; font-weight: 400; margin-left: .3rem; }
-@media (max-width: 640px) { .input-foot .dis { display: none; } .input-foot { justify-content: flex-end; } }
+/* Chat | Cowork toggle (bottom-left of the box) */
+.st-key-mode_wrap [data-testid="stButtonGroup"], .st-key-mode_wrap [role="radiogroup"] {
+    background: #222; border: 1px solid #353535; border-radius: 12px; padding: 2px; gap: 2px; width: fit-content; }
+.st-key-mode_wrap [data-testid="stBaseButton-segmented_control"] {
+    background: transparent !important; border: none !important; color: #9a9a9a !important;
+    border-radius: 9px !important; min-height: 2rem !important; padding: 0 .9rem !important; box-shadow: none !important; }
+.st-key-mode_wrap [data-testid="stBaseButton-segmented_controlActive"] {
+    background: #3a3a3a !important; border: none !important; color: #fff !important;
+    border-radius: 9px !important; min-height: 2rem !important; padding: 0 .9rem !important; box-shadow: none !important; }
 
-/* ---------- + menu (left aligned, compact, like Claude) ---------- */
+/* model label inside the box (bottom-right) */
+.mdl-in { color: #ffffff; white-space: nowrap; text-align: right; font-size: .95rem; }
+.mdl-in b { color: #9a9a9a; font-weight: 400; margin-left: .35rem; }
+@media (max-width: 640px) { .mdl-in { display: none; } }
+
+/* footer under the box */
+.input-foot { display: flex; justify-content: center; align-items: center; gap: 1rem;
+    padding: .55rem .9rem 0; color: #8a8a8a; font-size: .85rem; }
+@media (max-width: 640px) { .input-foot .dis { font-size: .75rem; } }
+
+/* ---------- + menu and account menu (left aligned, compact, like Claude) ---------- */
 [data-testid="stPopoverBody"] { background: #2b2b2b !important; border: 1px solid #3d3d3d !important; border-radius: 16px !important;
     width: 330px !important; min-width: 330px !important; padding: .4rem !important; max-height: 85vh !important; }
 [data-testid="stPopoverBody"] [data-testid="stVerticalBlock"] { gap: .1rem !important; }
 [data-testid="stPopoverBody"] hr { margin: .3rem .5rem !important; border-color: #3d3d3d !important; }
 [data-testid="stPopoverBody"] [data-testid="stElementContainer"] { margin: 0 !important; }
-[class*="st-key-menu_"] button { display: flex !important; justify-content: flex-start !important; text-align: left !important;
+[class*="st-key-menu_"] button, [class*="st-key-acct_"] button { display: flex !important; justify-content: flex-start !important; text-align: left !important;
     gap: .6rem; width: 100%; background: transparent !important; border: none !important; color: #fff !important;
     padding: .45rem .7rem !important; border-radius: 10px !important; font-size: 1rem !important; min-height: 0 !important; }
-[class*="st-key-menu_"] button > div, [class*="st-key-menu_"] button [data-testid="stMarkdownContainer"] {
+[class*="st-key-menu_"] button > div, [class*="st-key-menu_"] button [data-testid="stMarkdownContainer"],
+[class*="st-key-acct_"] button > div, [class*="st-key-acct_"] button [data-testid="stMarkdownContainer"] {
     justify-content: flex-start !important; text-align: left !important; flex: 0 1 auto; width: auto; }
-[class*="st-key-menu_"] button p { text-align: left !important; }
-[class*="st-key-menu_"] button:hover { background: #3a3a3a !important; }
+[class*="st-key-menu_"] button p, [class*="st-key-acct_"] button p { text-align: left !important; }
+[class*="st-key-menu_"] button:hover, [class*="st-key-acct_"] button:hover { background: #3a3a3a !important; }
 .st-key-menu_upload button::after { content: "Ctrl+U"; margin-left: auto; color: #9a9a9a; font-size: .95rem; }
 .st-key-menu_project button::after, .st-key-menu_skills button::after,
-.st-key-menu_connector button::after, .st-key-menu_design button::after { content: "›"; margin-left: auto; color: #aaa; font-size: 1.5rem; line-height: 1; }
+.st-key-menu_connector button::after, .st-key-menu_design button::after,
+.st-key-acct_learn button::after { content: "›"; margin-left: auto; color: #aaa; font-size: 1.5rem; line-height: 1; }
+.st-key-acct_settings button::after { content: "Ctrl+Shift+,"; margin-left: auto; color: #9a9a9a; font-size: .95rem; }
 .st-key-menu_web_on button::after { content: "✓"; margin-left: auto; color: #4a9eff; font-size: 1.3rem; }
-.st-key-hidden_upload { display: none; }
+.st-key-hidden_upload, .st-key-hidden_settings { display: none; }
+.acct-email { color: #a8a8a8; font-size: .95rem; padding: .5rem .7rem .4rem; word-break: break-all; }
 
 /* ---------- Starter chips under the input bar ---------- */
 .st-key-chips [data-testid="stHorizontalBlock"] { justify-content: center; flex-wrap: wrap !important; gap: .5rem !important; margin-top: 1.4rem; }
@@ -178,6 +209,7 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
 /* ---------- Sidebar nav like Claude ---------- */
 [data-testid="stSidebar"] [data-testid="stSidebarHeader"] { display: none; }
 [data-testid="stSidebar"] .stButton button { display: flex !important; align-items: center !important; gap: .8rem; width: 100%; font-size: 1.05rem !important; }
+.st-key-nav_new button { background: #2f2f2e !important; }
 .st-key-nav_code button::after { content: "Upgrade"; margin-left: auto; color: #5aa9ff; background: #1b2430; border: 1px solid #2c3a4d;
     border-radius: 999px; padding: 1px 10px; font-size: .8rem; white-space: nowrap; flex: 0 0 auto; }
 .side-head { display: flex; align-items: center; justify-content: space-between; color: #f2f2f2; font-weight: 600;
@@ -186,25 +218,18 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
 .st-key-view_all button { color: #9a9a9a !important; }
 [data-testid="stSidebar"] [data-testid="stBaseButton-primary"] { background: #3a3a39 !important; }
 
-/* ---------- Input pill: message on top, tools row below ---------- */
-.st-key-pill { border-radius: 22px; padding: 10px 14px 8px; }
-.st-key-inputbar .stTextArea textarea { padding: 6px 4px 10px !important; }
-.mdl-inline { color: #fff; font-size: .95rem; text-align: right; white-space: nowrap; }
-.mdl-inline span { color: #9a9a9a; margin-left: .3rem; }
-.st-key-mode_wrap [role="radiogroup"], .st-key-mode_wrap [data-baseweb="button-group"] {
-    background: #222; border: 1px solid #333; border-radius: 10px; }
-
 /* ---------- Account row pinned to the bottom of the sidebar ---------- */
-.st-key-acct_wrap { position: fixed; bottom: 0; left: 0; width: var(--sbw, 21rem);
-    background: #1f1f1e; border-top: 1px solid #2a2a2a; padding: .6rem; z-index: 100; }
-.st-key-acct_wrap button { width: 100%; justify-content: space-between !important; }
-.st-key-acct_wrap button::before { content: "C"; display: inline-flex; align-items: center; justify-content: center;
-    width: 28px; height: 28px; border-radius: 50%; background: #3a3a3a; font-size: .8rem; margin-right: .6rem; flex: 0 0 auto; }
-
-/* ---------- Account menu items ---------- */
-.acct-email { color: #9a9a9a; font-size: .95rem; padding: .45rem .7rem .3rem; }
-.st-key-menu_acct_settings button::after { content: "Ctrl+Shift+,"; margin-left: auto; color: #9a9a9a; font-size: .95rem; }
-.st-key-menu_acct_learn button::after { content: "›"; margin-left: auto; color: #aaa; font-size: 1.5rem; line-height: 1; }
+[data-testid="stSidebarUserContent"] { padding-bottom: 0 !important; }
+[data-testid="stSidebarUserContent"] > [data-testid="stVerticalBlock"],
+[data-testid="stSidebarUserContent"] > div > [data-testid="stVerticalBlock"] { min-height: calc(100vh - 2.5rem); }
+[data-testid="stLayoutWrapper"]:has(> .st-key-account_wrap),
+[data-testid="stElementContainer"]:has(> .st-key-account_wrap) {
+    margin-top: auto !important; position: sticky; bottom: 0; z-index: 5; background: #1f1f1e; }
+.st-key-account_wrap { border-top: 1px solid #2a2a2a; padding: .6rem 0 .6rem 0; background: #1f1f1e; }
+.st-key-side_account button { display: flex !important; align-items: center !important; gap: .7rem; width: 100%; font-size: 1.05rem !important; }
+.st-key-side_account button::before { content: "C"; flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%;
+    background: #3a3a39; color: #e8e8e8; display: inline-flex; align-items: center; justify-content: center; font-size: .85rem; }
+.st-key-side_devices button { color: #e8e8e8 !important; justify-content: center !important; padding: .42rem .4rem !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -286,6 +311,9 @@ defaults = {
     "attachments": [],
     "panel": None,
     "menu_view": "main",
+    "acct_view": "main",
+    "open_settings": False,
+    "auto_settings_done": False,
     "web_search": True,
     "shot_trigger": 0,
     "last_shot_id": None,
@@ -295,7 +323,6 @@ defaults = {
     "show_projects": False,
     "show_search": False,
     "show_all_chats": False,
-    "show_settings": False,
     "scroll_bottom": False,       # when True, the page scrolls to the newest message
 }
 for k, v in defaults.items():
@@ -448,6 +475,26 @@ def start_screenshot():
 def set_menu_view(view):
     st.session_state["menu_view"] = view
 
+def set_acct_view(view):
+    st.session_state["acct_view"] = view
+
+def open_settings():
+    st.session_state["open_settings"] = True
+    st.session_state["acct_view"] = "main"
+
+def logout():
+    st.session_state["stored_groq_key"] = ""
+    os.environ.pop("GROQ_API_KEY", None)
+    st.session_state["acct_view"] = "main"
+    st.session_state["toast"] = "Logged out."
+
+def on_mode_change():
+    val = st.session_state.get("mode_sel")
+    if val != "Chat":
+        if val == "Cowork":
+            st.session_state["toast"] = "Cowork is not available yet."
+        st.session_state["mode_sel"] = "Chat"
+
 def toggle_web_search():
     st.session_state["web_search"] = not st.session_state["web_search"]
 
@@ -504,10 +551,6 @@ def add_to_project(proj):
 def link_chat_to_project(proj):
     st.session_state["chat_project"][st.session_state["current_chat"]] = proj
 
-def logout():
-    st.session_state["stored_groq_key"] = ""
-    os.environ.pop("GROQ_API_KEY", None)
-
 def transcribe_audio():
     audio = st.session_state.get("mic_audio")
     if audio is None:
@@ -522,6 +565,21 @@ def transcribe_audio():
         st.session_state["msg_box"] = (st.session_state["msg_box"] + " " + result.text).strip()
     except Exception as e:
         st.session_state["toast"] = f"Voice input failed: {e}"
+
+# ---------------- SETTINGS DIALOG (Groq key lives here now) ----------------
+@st.dialog("Settings")
+def settings_dialog():
+    new_key = st.text_input("Groq API Key", value=st.session_state["stored_groq_key"],
+                            type="password", placeholder="gsk_...")
+    st.caption("Get a free key at console.groq.com. It is kept only for this session.")
+    if st.button("Save", key="save_settings", type="primary"):
+        if new_key.strip():
+            st.session_state["stored_groq_key"] = new_key.strip()
+            os.environ["GROQ_API_KEY"] = new_key.strip()
+            st.session_state["toast"] = "Settings saved."
+            st.rerun()
+        else:
+            st.error("Please paste your Groq API key.")
 
 # ---------------- CLAUDE-STYLE SIDEBAR ----------------
 FILTER_SVG = ('<svg width="18" height="18" viewBox="0 0 24 24"><line x1="4" y1="7" x2="20" y2="7"/>'
@@ -582,42 +640,57 @@ with st.sidebar:
         st.button("Show less" if st.session_state["show_all_chats"] else "View all", key="view_all",
                   use_container_width=True, on_click=toggle_state, args=("show_all_chats",))
 
-    st.markdown("<div style='height:4.5rem'></div>", unsafe_allow_html=True)  # room for the pinned account row
-
-    # Groq key box: shown automatically when no key is set, or via Settings
-    if st.session_state["show_settings"] or not st.session_state["stored_groq_key"]:
-        user_groq_key = st.text_input("Groq API Key", value=st.session_state["stored_groq_key"],
-                                      type="password", placeholder="gsk_...")
-        if user_groq_key:
-            st.session_state["stored_groq_key"] = user_groq_key
-            os.environ["GROQ_API_KEY"] = user_groq_key
-
-    with st.container(key="acct_wrap"):
-        with st.popover("Chandlio · Free", use_container_width=True):
-            st.markdown(f"<div class='acct-email'>{ACCOUNT_EMAIL}</div>", unsafe_allow_html=True)
-            st.button("Settings", icon=":material/settings:", key="menu_acct_settings", use_container_width=True,
-                      on_click=toggle_state, args=("show_settings",))
-            st.button("Language", icon=":material/language:", key="menu_acct_lang", use_container_width=True,
-                      on_click=soon, args=("Language is not available yet.",))
-            st.button("Get help", icon=":material/help:", key="menu_acct_help", use_container_width=True,
-                      on_click=soon, args=("Help is not available yet.",))
-            st.divider()
-            st.button("Upgrade plan", icon=":material/arrow_circle_up:", key="menu_acct_upgrade", use_container_width=True,
-                      on_click=soon, args=("Upgrade is not available yet.",))
-            st.button("Get apps and extensions", icon=":material/devices:", key="menu_acct_apps", use_container_width=True,
+    # ---- account row, pinned to the bottom (avatar + name + plan, opens the account menu) ----
+    with st.container(key="account_wrap"):
+        a1, a2 = st.columns([6, 1], vertical_alignment="center")
+        with a1:
+            with st.container(key="side_account"):
+                with st.popover("Chandlio · :gray[Free]", use_container_width=True):
+                    if st.session_state["acct_view"] == "main":
+                        st.markdown(f"<div class='acct-email'>{_html.escape(ACCOUNT_EMAIL)}</div>",
+                                    unsafe_allow_html=True)
+                        st.button("Settings", icon=":material/settings:", key="acct_settings",
+                                  use_container_width=True, on_click=open_settings)
+                        st.button("Language", icon=":material/language:", key="acct_language",
+                                  use_container_width=True, on_click=soon,
+                                  args=("Language: only English is available for now.",))
+                        st.button("Get help", icon=":material/help:", key="acct_help",
+                                  use_container_width=True, on_click=soon,
+                                  args=("Help is not available yet.",))
+                        st.divider()
+                        st.button("Upgrade plan", icon=":material/arrow_circle_up:", key="acct_upgrade",
+                                  use_container_width=True, on_click=soon,
+                                  args=("Upgrade is not available yet.",))
+                        st.button("Get apps and extensions", icon=":material/devices:", key="acct_apps",
+                                  use_container_width=True, on_click=soon,
+                                  args=("Apps and extensions are not available yet.",))
+                        st.button("Learn more", icon=":material/info:", key="acct_learn",
+                                  use_container_width=True, on_click=set_acct_view, args=("learn",))
+                        st.divider()
+                        st.button("Log out", icon=":material/logout:", key="acct_logout",
+                                  use_container_width=True, on_click=logout)
+                    else:
+                        st.button("Back", icon=":material/arrow_back:", key="acct_back",
+                                  use_container_width=True, on_click=set_acct_view, args=("main",))
+                        st.caption("Chandlio is a personal project built with Streamlit and Groq.")
+        with a2:
+            st.button(" ", icon=":material/devices:", key="side_devices", use_container_width=True,
                       on_click=soon, args=("Apps and extensions are not available yet.",))
-            st.button("Learn more", icon=":material/info:", key="menu_acct_learn", use_container_width=True,
-                      on_click=soon, args=("Nothing to show yet.",))
-            st.divider()
-            st.button("Log out", icon=":material/logout:", key="menu_acct_logout", use_container_width=True,
-                      on_click=logout)
+
+    # open the Settings dialog (from the menu, Ctrl+Shift+, or automatically when no key is set yet)
+    _want_settings = st.session_state.pop("open_settings", False)
+    if not st.session_state["stored_groq_key"] and not st.session_state["auto_settings_done"]:
+        st.session_state["auto_settings_done"] = True
+        _want_settings = True
+    if _want_settings:
+        settings_dialog()
 
 # ---------------- JAVASCRIPT (shortcuts, top-bar offset, auto-grow, auto-scroll) ----------------
 KEYS_AND_SCROLL_JS = """
 (function () {
   var P = window.parent, doc = P.document;
 
-  /* Enter = send, Shift+Enter = new line, Ctrl+U = upload */
+  /* Enter = send, Shift+Enter = new line, Ctrl+U = upload, Ctrl+Shift+, = settings */
   if (P.__chandlioKeys) { doc.removeEventListener("keydown", P.__chandlioKeys, true); }
   P.__chandlioKeys = function (e) {
     var t = e.target;
@@ -630,10 +703,15 @@ KEYS_AND_SCROLL_JS = """
         if (b) b.click();
       }, 150);
     }
-    if ((e.ctrlKey || e.metaKey) && (e.key === "u" || e.key === "U")) {
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === "u" || e.key === "U")) {
       e.preventDefault();
       var h = doc.querySelector(".st-key-hidden_upload button");
       if (h) h.click();
+    }
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "," || e.key === "<")) {
+      e.preventDefault();
+      var s = doc.querySelector(".st-key-hidden_settings button");
+      if (s) s.click();
     }
   };
   doc.addEventListener("keydown", P.__chandlioKeys, true);
@@ -702,6 +780,7 @@ def run_js(js_code):
 # ---------------- INPUT BAR ----------------
 def render_input_bar():
     st.button("hidden upload", key="hidden_upload", on_click=set_panel, args=("upload",))
+    st.button("hidden settings", key="hidden_settings", on_click=open_settings)
     run_js(KEYS_AND_SCROLL_JS)
 
     has_msgs = bool(st.session_state["chat_sessions"][st.session_state["current_chat"]])
@@ -747,11 +826,13 @@ def render_input_bar():
             for i, a in enumerate(st.session_state["attachments"]):
                 st.button(f"📎 {a['name']}  ✕", key=f"rm_{i}", on_click=remove_attachment, args=(i,))
 
-            # Row 1: the message box.  Row 2: +  |  Chat/Cowork  |  model  |  mic  |  send
+            # Row 1: the message box
             st.text_area("Message", key="msg_box", placeholder="How can I help you today?",
                          height=68, label_visibility="collapsed")
-            c_plus, c_mode, c_model, c_mic, c_send = st.columns([0.8, 3.2, 4.2, 0.9, 0.9],
-                                                                vertical_alignment="center")
+
+            # Row 2:  +  |  Chat / Cowork  |  ........  |  model  |  mic  |  send
+            c_plus, c_mode, c_gap, c_model, c_mic, c_send = st.columns(
+                [0.7, 2.6, 2.6, 2.6, 0.9, 0.8], vertical_alignment="center")
 
             with c_plus:
                 with st.container(key="plus_wrap"):
@@ -798,15 +879,14 @@ def render_input_bar():
             with c_mode:
                 with st.container(key="mode_wrap"):
                     if hasattr(st, "segmented_control"):
-                        st.segmented_control("Mode", ["Chat", "Cowork"], default="Chat", key="mode",
-                                             label_visibility="collapsed")
+                        st.segmented_control("Mode", ["Chat", "Cowork"], default="Chat", key="mode_sel",
+                                             on_change=on_mode_change, label_visibility="collapsed")
                     else:
-                        st.radio("Mode", ["Chat", "Cowork"], horizontal=True, key="mode",
-                                 label_visibility="collapsed")
+                        st.radio("Mode", ["Chat", "Cowork"], key="mode_sel", horizontal=True,
+                                 on_change=on_mode_change, label_visibility="collapsed")
 
             with c_model:
-                st.markdown(f"<div class='mdl-inline'>{MODEL_LABEL}<span>{MODEL_NOTE}</span> ⌄</div>",
-                            unsafe_allow_html=True)
+                st.markdown(f"<div class='mdl-in'>{MODEL_LABEL}<b>{MODEL_NOTE}</b></div>", unsafe_allow_html=True)
 
             with c_mic:
                 with st.container(key="mic_wrap"):
@@ -825,8 +905,8 @@ def render_input_bar():
 
         if has_msgs or st.session_state["pending_prompt"] is not None:
             st.markdown(
-                f"<div class='input-foot'><span class='dis'>Chandlio is AI and can make mistakes. "
-                f"Please double-check responses.</span></div>",
+                "<div class='input-foot'><span class='dis'>Chandlio is AI and can make mistakes. "
+                "Please double-check responses.</span></div>",
                 unsafe_allow_html=True)
 
 def render_starter_chips():
@@ -850,7 +930,7 @@ active_key = st.session_state["stored_groq_key"]
 if not active_key:
     st.markdown(f"<div style='height:14vh'></div><div class='hero'><img src='{STAR_URI}'>Welcome to Chandlio</div>",
                 unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #a1a1aa;'>Please enter your free Groq API key in the left sidebar to unlock the application.</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #a1a1aa;'>Open the account menu (bottom-left) → Settings and paste your free Groq API key to unlock the application.</p>", unsafe_allow_html=True)
     st.stop()
 
 _DOC_SVG = '<svg width="20" height="20" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/></svg>'
