@@ -7,143 +7,136 @@ import hashlib
 import pathlib
 import tempfile
 
-# Page configuration
-st.set_page_config(
-    page_title="Chandlio's AI Bot",
-    page_icon="⚡",
-    layout="wide"
-)
+st.set_page_config(page_title="Chandlio's AI Bot", page_icon="⚡", layout="wide")
 
-# Custom Exact Claude Theme Styling (Background #191919, White Text, Orange Accents)
+GREETING = "Let’s have a think"      # <- change the home-screen heading here
+MODEL_LABEL, MODEL_NOTE = "gpt-oss-120b", "Fast"
+
+# Claude-style starburst logo (data URI so the markdown sanitizer keeps it)
+_STAR_SVG = ('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">'
+             '<g stroke="#d97757" stroke-width="3.2" stroke-linecap="round">'
+             + "".join(f'<line x1="20" y1="20" x2="20" y2="4" transform="rotate({a} 20 20)"/>' for a in range(0, 360, 30))
+             + "</g></svg>")
+STAR_URI = "data:image/svg+xml;base64," + base64.b64encode(_STAR_SVG.encode()).decode()
+
 st.markdown("""
 <style>
-.stApp { background-color: #191919; color: #ffffff; }
-[data-testid="stSidebar"] { background-color: #1e1e1e; border-right: 1px solid #2a2a2a; }
-.stTextInput input, .stTextArea textarea {
-    background-color: #252525 !important; color: #ffffff !important;
-    border-radius: 8px !important; border: 1px solid #333333 !important;
-}
-h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !important; }
-.stChatMessage.user { background-color: #252525; border-radius: 12px; color: #ffffff; }
-.stChatMessage.assistant { background-color: #191919; border: 1px solid #2a2a2a; border-radius: 12px; color: #ffffff; }
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&display=swap');
+:root { --serif: "Source Serif 4", "Tiempos Text", Georgia, "Times New Roman", serif; }
 
-/* ---------- Fit screen: everything must fit inside the centered column ---------- */
+.stApp { background-color: #191919; color: #ffffff; }
+[data-testid="stHeader"] { background: transparent !important; }
+[data-testid="stToolbarActions"], [data-testid="stMainMenu"] { display: none !important; }
+h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !important; }
 .block-container { padding-top: 3rem !important; padding-bottom: 4rem !important; }
 .stMarkdown table { display: block; max-width: 100%; overflow-x: auto; }
 .stMarkdown pre, .stMarkdown code { white-space: pre-wrap !important; word-break: break-word; }
 .stMarkdown img, [data-testid="stImage"] img { max-width: 100% !important; height: auto; }
 .stMarkdown a { word-break: break-all; }
 
-/* ---------- Claude-style input bar (small, centered, sticks to the bottom) ---------- */
-/* make the wrapper around the bar "disappear" so sticky works against the chat column */
+/* ---------- Home screen (serif heading + plan pill) ---------- */
+.plan-wrap { text-align: center; margin-bottom: 3.2rem; }
+.plan-pill { display: inline-block; background: #222; border: 1px solid #2f2f2f; color: #a8a8a8;
+    border-radius: 12px; padding: 6px 16px; font-size: .95rem; }
+.hero { font-family: var(--serif); font-weight: 400; font-size: 3rem; color: #f5f4ef;
+    display: flex; align-items: center; justify-content: center; gap: .9rem; margin: 0 0 1.8rem; line-height: 1.1; }
+.hero img { width: 40px; height: 40px; }
+
+/* ---------- Chat messages (user = box, assistant = serif text) ---------- */
+[data-testid="stChatMessage"] { background: transparent !important; border: none !important; padding: .4rem 0 !important; }
+[data-testid="stChatMessageAvatarUser"], [data-testid="stChatMessageAvatarAssistant"],
+[data-testid="stChatMessageAvatarCustom"] { display: none !important; }
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) { background: #262626 !important; border-radius: 14px !important; padding: .7rem 1rem !important; }
+[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) [data-testid="stMarkdownContainer"] {
+    font-family: var(--serif); font-size: 1.08rem; line-height: 1.7; color: #ececec; }
+
+/* ---------- Sidebar (flat Claude-style nav) ---------- */
+[data-testid="stSidebar"] { background-color: #1f1f1e; border-right: 1px solid #2a2a2a; }
+.brand { font-family: var(--serif); font-size: 1.7rem; color: #f5f4ef; padding: .2rem .4rem .6rem; }
+.side-label { color: #9a9a9a; font-size: .9rem; padding: .9rem .7rem .2rem; }
+[data-testid="stSidebar"] [data-testid="stVerticalBlock"] { gap: .15rem; }
+[data-testid="stSidebar"] button { background: transparent !important; border: none !important; color: #e8e8e8 !important;
+    justify-content: flex-start !important; text-align: left !important; padding: .42rem .7rem !important;
+    border-radius: 10px !important; min-height: 0 !important; font-size: 1rem !important; box-shadow: none !important; }
+[data-testid="stSidebar"] button > div, [data-testid="stSidebar"] button [data-testid="stMarkdownContainer"] {
+    justify-content: flex-start !important; text-align: left !important; width: auto; }
+[data-testid="stSidebar"] button p { text-align: left !important; }
+[data-testid="stSidebar"] button:hover { background: #2a2a29 !important; }
+[data-testid="stSidebar"] [data-testid="stBaseButton-primary"] { background: #2f2f2e !important; }
+[data-testid="stSidebar"] [data-testid="stExpander"] { border: none !important; }
+[data-testid="stSidebar"] .stTextInput input { background: #252525 !important; color: #fff !important; border: 1px solid #333 !important; border-radius: 8px !important; }
+
+/* ---------- Input bar (wide, sticky, rounded) ---------- */
 [data-testid="stLayoutWrapper"]:has(> .st-key-inputbar),
 [data-testid="stElementContainer"]:has(> .st-key-inputbar) { display: contents !important; }
-
-.st-key-inputbar {
-    position: sticky !important; bottom: 1rem; z-index: 999;
-    width: 100%; max-width: 620px; margin: 1rem auto 0 auto;
-    background: #2b2b2b; border: 1px solid #3d3d3d; border-radius: 20px;
-    padding: 6px 12px 4px 12px; max-height: 75vh; overflow-y: auto;
-    box-shadow: 0 4px 24px rgba(0,0,0,0.45);
-}
-
-/* text area: no inner box, no resize handle, no hint text, compact height */
-.st-key-inputbar .stTextArea,
-.st-key-inputbar .stTextArea > div,
-.st-key-inputbar .stTextArea > div > div,
-.st-key-inputbar [data-baseweb="textarea"],
-.st-key-inputbar [data-baseweb="base-input"] {
-    background: transparent !important; border: none !important; box-shadow: none !important;
-}
-.st-key-inputbar .stTextArea [data-baseweb="textarea"],
-.st-key-inputbar .stTextArea [data-baseweb="base-input"],
-.st-key-inputbar .stTextArea textarea {
-    height: 44px !important; min-height: 44px !important;
-}
-.st-key-inputbar .stTextArea textarea {
-    background: transparent !important; border: none !important; box-shadow: none !important;
-    resize: none !important; font-size: 1rem !important; color: #ffffff !important;
-    padding: 4px 4px !important;
-}
+.st-key-inputbar { position: sticky !important; bottom: 1rem; z-index: 999; width: 100%; margin: 1rem auto 0 auto;
+    background: #2b2b2b; border: 1px solid #3d3d3d; border-radius: 22px; padding: 10px 14px 12px 14px;
+    max-height: 75vh; overflow-y: auto; overflow-x: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.45); }
+.st-key-inputbar .stTextArea, .st-key-inputbar .stTextArea > div, .st-key-inputbar .stTextArea > div > div,
+.st-key-inputbar [data-baseweb="textarea"], .st-key-inputbar [data-baseweb="base-input"] {
+    background: transparent !important; border: none !important; box-shadow: none !important; }
+.st-key-inputbar .stTextArea [data-baseweb="textarea"], .st-key-inputbar .stTextArea [data-baseweb="base-input"],
+.st-key-inputbar .stTextArea textarea { height: 52px !important; min-height: 52px !important; }
+.st-key-inputbar .stTextArea textarea { background: transparent !important; border: none !important; box-shadow: none !important;
+    resize: none !important; font-size: 1.05rem !important; color: #fff !important; padding: 4px 4px !important; }
 .st-key-inputbar .stTextArea textarea::placeholder { color: #8a8a8a !important; }
-.st-key-inputbar [data-testid="InputInstructions"],
-.st-key-inputbar [data-testid="stTextAreaInstructions"] { display: none !important; }
-
-/* keep the button row on one line (also on mobile) */
-.st-key-inputbar [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: 0.3rem !important; align-items: center !important; }
+.st-key-inputbar [data-testid="InputInstructions"], .st-key-inputbar [data-testid="stTextAreaInstructions"] { display: none !important; }
+.st-key-inputbar [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: .3rem !important; align-items: center !important; }
 .st-key-inputbar [data-testid="stColumn"] { min-width: 0 !important; }
 .st-key-inputbar [data-testid="stElementContainer"] { margin: 0 !important; }
+.st-key-inputbar [data-testid="stMarkdownContainer"] p { margin: 0 !important; }
+.st-key-inputbar button:focus, .st-key-inputbar button:focus-visible { outline: none !important; box-shadow: none !important; }
 
-/* plus + mic popover buttons */
-.st-key-inputbar [data-testid="stPopover"] button {
-    background: transparent !important; border: none !important;
-    color: #ffffff !important; font-size: 1.3rem !important; padding: 0 0.4rem !important; min-height: 1.9rem !important;
-}
+/* + button, mic, send: flat icon buttons */
+.st-key-inputbar [data-testid="stPopover"] button, .st-key-send_btn button {
+    background: transparent !important; border: none !important; color: #e6e6e6 !important;
+    padding: 0 .5rem !important; min-height: 2.1rem !important; border-radius: 10px !important; }
+.st-key-inputbar [data-testid="stPopover"] button:hover, .st-key-send_btn button:hover { background: #3a3a3a !important; }
+.st-key-plus_wrap [data-testid="stPopover"] button { font-size: 1.7rem !important; font-weight: 300 !important; }
 .st-key-plus_wrap [data-testid="stPopover"] button svg,
 .st-key-plus_wrap [data-testid="stPopover"] button [data-testid="stIconMaterial"] { display: none !important; }
-.st-key-plus_wrap [data-testid="stPopover"] button:hover { background: #3a3a3a !important; border-radius: 10px !important; }
+.st-key-send_btn button { font-size: 1.3rem !important; }
 
-/* Chat pill */
-.chat-pill {
-    display: inline-flex; align-items: center; background: #3d3d3d; color: #ffffff;
-    border: 1px solid #4a4a4a; border-radius: 10px; padding: 2px 14px; font-size: 0.9rem; margin: 0;
-}
+/* Chat | Cowork toggle + model label */
+.seg { display: inline-flex; background: #232323; border: 1px solid #3a3a3a; border-radius: 10px; padding: 2px; }
+.seg span { padding: 4px 13px; border-radius: 8px; color: #a8a8a8; font-size: .95rem; }
+.seg .on { background: #3d3d3d; color: #fff; }
+.model-label { text-align: right; white-space: nowrap; color: #fff; font-size: .95rem; }
+.model-label span { color: #9a9a9a; margin-left: .3rem; }
+@media (max-width: 640px) { .model-label { display: none; } }
 
-/* send button */
-.st-key-send_btn button {
-    background: #d97757 !important; border: none !important; border-radius: 50% !important;
-    width: 2rem !important; height: 2rem !important; min-height: 0 !important;
-    padding: 0 !important; color: #fff !important; font-size: 1.05rem !important; line-height: 1 !important;
-}
-
-/* ---------- Plus menu (popover body) ---------- */
-[data-testid="stPopoverBody"] { background: #2b2b2b !important; border: 1px solid #3d3d3d !important; border-radius: 16px !important; min-width: 320px; padding: 0.5rem !important; }
-[data-testid="stPopoverBody"] hr { margin: 0.35rem 0 !important; border-color: #3d3d3d !important; }
+/* ---------- + menu (left aligned, compact, like Claude) ---------- */
+[data-testid="stPopoverBody"] { background: #2b2b2b !important; border: 1px solid #3d3d3d !important; border-radius: 16px !important;
+    width: 330px !important; min-width: 330px !important; padding: .4rem !important; max-height: 85vh !important; }
+[data-testid="stPopoverBody"] [data-testid="stVerticalBlock"] { gap: .1rem !important; }
+[data-testid="stPopoverBody"] hr { margin: .3rem .5rem !important; border-color: #3d3d3d !important; }
 [data-testid="stPopoverBody"] [data-testid="stElementContainer"] { margin: 0 !important; }
-[class*="st-key-menu_"] button {
-    display: flex !important; justify-content: flex-start !important; text-align: left !important;
-    background: transparent !important; border: none !important; color: #ffffff !important;
-    padding: 0.5rem 0.7rem !important; border-radius: 10px !important; font-size: 1rem !important;
-}
+[class*="st-key-menu_"] button { display: flex !important; justify-content: flex-start !important; text-align: left !important;
+    gap: .6rem; width: 100%; background: transparent !important; border: none !important; color: #fff !important;
+    padding: .45rem .7rem !important; border-radius: 10px !important; font-size: 1rem !important; min-height: 0 !important; }
+[class*="st-key-menu_"] button > div, [class*="st-key-menu_"] button [data-testid="stMarkdownContainer"] {
+    justify-content: flex-start !important; text-align: left !important; flex: 0 1 auto; width: auto; }
+[class*="st-key-menu_"] button p { text-align: left !important; }
 [class*="st-key-menu_"] button:hover { background: #3a3a3a !important; }
-.st-key-menu_upload button::after { content: "Ctrl+U"; margin-left: auto; color: #9a9a9a; font-size: 0.9rem; padding-left: 2rem; }
-.st-key-menu_project button::after,
-.st-key-menu_skills button::after,
-.st-key-menu_connector button::after,
-.st-key-menu_design button::after { content: "›"; margin-left: auto; color: #aaaaaa; font-size: 1.5rem; padding-left: 2rem; }
-.st-key-menu_web_on button::after { content: "✓"; margin-left: auto; color: #4a9eff; font-size: 1.25rem; padding-left: 2rem; }
+.st-key-menu_upload button::after { content: "Ctrl+U"; margin-left: auto; color: #9a9a9a; font-size: .95rem; }
+.st-key-menu_project button::after, .st-key-menu_skills button::after,
+.st-key-menu_connector button::after, .st-key-menu_design button::after { content: "›"; margin-left: auto; color: #aaa; font-size: 1.5rem; line-height: 1; }
+.st-key-menu_web_on button::after { content: "✓"; margin-left: auto; color: #4a9eff; font-size: 1.3rem; }
 .st-key-hidden_upload { display: none; }
 
-/* ---------- Visible page up/down scrollbar on the right side ---------- */
+/* ---------- Starter chips under the input bar ---------- */
+.st-key-chips [data-testid="stHorizontalBlock"] { justify-content: center; flex-wrap: wrap !important; gap: .5rem !important; margin-top: 1.4rem; }
+.st-key-chips [data-testid="stColumn"] { flex: 0 0 auto !important; width: auto !important; min-width: 0 !important; }
+.st-key-chips button { background: #222 !important; border: 1px solid #333 !important; border-radius: 12px !important;
+    color: #e0e0e0 !important; padding: .35rem .95rem !important; min-height: 2.4rem !important; }
+.st-key-chips button:hover { background: #2c2c2c !important; }
+
+/* ---------- Visible page scrollbar ---------- */
 [data-testid="stMain"], .stMain, section.main { overflow-y: scroll !important; }
-[data-testid="stMain"]::-webkit-scrollbar,
-.stMain::-webkit-scrollbar,
-section.main::-webkit-scrollbar { width: 16px !important; background: #1e1e1e !important; }
-[data-testid="stMain"]::-webkit-scrollbar-track,
-.stMain::-webkit-scrollbar-track,
-section.main::-webkit-scrollbar-track { background: #1e1e1e !important; }
-[data-testid="stMain"]::-webkit-scrollbar-thumb,
-.stMain::-webkit-scrollbar-thumb,
-section.main::-webkit-scrollbar-thumb { background: #6b6b6b !important; border-radius: 8px !important; border: 3px solid #1e1e1e !important; }
-[data-testid="stMain"]::-webkit-scrollbar-thumb:hover,
-.stMain::-webkit-scrollbar-thumb:hover,
-section.main::-webkit-scrollbar-thumb:hover { background: #9a9a9a !important; }
-[data-testid="stMain"]::-webkit-scrollbar-button:single-button,
-.stMain::-webkit-scrollbar-button:single-button,
-section.main::-webkit-scrollbar-button:single-button {
-    display: block !important; height: 18px !important; background-color: #1e1e1e !important;
-    background-repeat: no-repeat !important; background-position: center !important; background-size: 10px !important;
-}
-[data-testid="stMain"]::-webkit-scrollbar-button:single-button:vertical:decrement,
-.stMain::-webkit-scrollbar-button:single-button:vertical:decrement,
-section.main::-webkit-scrollbar-button:single-button:vertical:decrement {
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><path d='M1 7 L5 3 L9 7' fill='none' stroke='%23bbbbbb' stroke-width='2'/></svg>") !important;
-}
-[data-testid="stMain"]::-webkit-scrollbar-button:single-button:vertical:increment,
-.stMain::-webkit-scrollbar-button:single-button:vertical:increment,
-section.main::-webkit-scrollbar-button:single-button:vertical:increment {
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><path d='M1 3 L5 7 L9 3' fill='none' stroke='%23bbbbbb' stroke-width='2'/></svg>") !important;
-}
+[data-testid="stMain"]::-webkit-scrollbar { width: 14px !important; background: #1e1e1e !important; }
+[data-testid="stMain"]::-webkit-scrollbar-track { background: #1e1e1e !important; }
+[data-testid="stMain"]::-webkit-scrollbar-thumb { background: #6b6b6b !important; border-radius: 8px !important; border: 3px solid #1e1e1e !important; }
+[data-testid="stMain"]::-webkit-scrollbar-thumb:hover { background: #9a9a9a !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -219,12 +212,12 @@ defaults = {
     "show_workspace": False,
     "workspace_content": "# Workspace\n\nGenerated artifacts will appear here.",
     "stored_groq_key": "",
-    "projects": {},          # project name -> {"description": str, "files": [ {name,type,data} ]}
-    "chat_project": {},      # chat name -> project name
-    "attachments": [],       # files waiting to be sent with the next message
-    "panel": None,           # "screenshot" | "upload" | "newproject" | None
-    "menu_view": "main",     # "main" | "project" | "skills" | "connector" | "design"
-    "web_search": True,      # Web search toggle in the + menu
+    "projects": {},
+    "chat_project": {},
+    "attachments": [],
+    "panel": None,
+    "menu_view": "main",
+    "web_search": True,
     "shot_trigger": 0,
     "last_shot_id": None,
     "pending_prompt": None,
@@ -235,8 +228,8 @@ for k, v in defaults.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
-# Centered, fit-to-screen column (wider only when the artifact workspace is open)
-_col_width = "1400px" if st.session_state["show_workspace"] else "780px"
+# Wider centered column (wider still when the artifact workspace is open)
+_col_width = "1400px" if st.session_state["show_workspace"] else "860px"
 st.markdown(
     f"<style>.block-container {{ max-width: {_col_width} !important; margin: 0 auto !important; "
     f"padding-left: 1.2rem !important; padding-right: 1.2rem !important; }}</style>",
@@ -322,6 +315,9 @@ def show_plugins_note():
 def close_panel():
     st.session_state["panel"] = None
 
+def set_starter(text):
+    st.session_state["msg_box"] = text
+
 def send_message():
     text = st.session_state["msg_box"].strip()
     if text or st.session_state["attachments"]:
@@ -383,38 +379,46 @@ def transcribe_audio():
 
 # ---------------- CLAUDE-STYLE SIDEBAR ----------------
 with st.sidebar:
-    st.markdown("<h3 style='color: #ffffff;'>⚡ Chandlio</h3>", unsafe_allow_html=True)
-    if st.button("➕ New Chat", use_container_width=True):
+    st.markdown("<div class='brand'>Chandlio</div>", unsafe_allow_html=True)
+    _cur_empty = not st.session_state["chat_sessions"][st.session_state["current_chat"]]
+
+    if st.button("New chat", icon=":material/add:", use_container_width=True, key="nav_new",
+                 type="primary" if _cur_empty else "secondary"):
         new_title = f"Chat {len(st.session_state['chat_sessions']) + 1}"
         st.session_state["chat_sessions"][new_title] = []
         st.session_state["current_chat"] = new_title
         st.session_state["show_workspace"] = False
         st.rerun()
 
-    st.markdown("---")
-    st.markdown("<p style='color: #aaaaaa; font-weight: bold;'>Recent Chats & Tasks</p>", unsafe_allow_html=True)
+    if st.button("Artifacts", icon=":material/widgets:", use_container_width=True, key="nav_artifacts"):
+        st.session_state["show_workspace"] = True
+        st.rerun()
+
+    st.markdown("<div class='side-label'>Projects</div>", unsafe_allow_html=True)
+    st.button("New project", icon=":material/create_new_folder:", use_container_width=True,
+              key="side_new_project", on_click=set_panel, args=("newproject",))
+    active_proj = st.session_state["chat_project"].get(st.session_state["current_chat"])
+    for pname, pdata in st.session_state["projects"].items():
+        st.button(f"{pname} ({len(pdata['files'])})", use_container_width=True, key=f"proj_{pname}",
+                  icon=":material/check_circle:" if pname == active_proj else ":material/folder:",
+                  on_click=link_chat_to_project, args=(pname,))
+
+    st.markdown("<div class='side-label'>Chats and tasks</div>", unsafe_allow_html=True)
     for chat_name in list(st.session_state["chat_sessions"].keys())[::-1]:
-        if st.button(chat_name, use_container_width=True, key=f"btn_{chat_name}"):
+        is_active = chat_name == st.session_state["current_chat"] and not _cur_empty
+        if st.button(chat_name, use_container_width=True, key=f"btn_{chat_name}",
+                     type="primary" if is_active else "secondary"):
             st.session_state["current_chat"] = chat_name
             st.rerun()
 
-    st.markdown("---")
-    st.markdown("<p style='color: #aaaaaa; font-weight: bold;'>📁 Projects</p>", unsafe_allow_html=True)
-    st.button("➕ New Project", use_container_width=True, key="side_new_project",
-              on_click=set_panel, args=("newproject",))
-    active_proj = st.session_state["chat_project"].get(st.session_state["current_chat"])
-    for pname, pdata in st.session_state["projects"].items():
-        label = f"{'✅ ' if pname == active_proj else '📁 '}{pname} ({len(pdata['files'])})"
-        st.button(label, use_container_width=True, key=f"proj_{pname}",
-                  on_click=link_chat_to_project, args=(pname,))
-
-    st.markdown("---")
-    st.markdown("<p style='color: #ffffff; font-weight: bold;'>🔑 Configuration</p>", unsafe_allow_html=True)
-    user_groq_key = st.text_input("Groq API Key", value=st.session_state["stored_groq_key"],
-                                  type="password", placeholder="gsk_...")
-    if user_groq_key:
-        st.session_state["stored_groq_key"] = user_groq_key
-        os.environ["GROQ_API_KEY"] = user_groq_key
+    st.markdown("<div class='side-label'></div>", unsafe_allow_html=True)
+    with st.expander("Chandlio · Free", icon=":material/settings:",
+                     expanded=not st.session_state["stored_groq_key"]):
+        user_groq_key = st.text_input("Groq API Key", value=st.session_state["stored_groq_key"],
+                                      type="password", placeholder="gsk_...")
+        if user_groq_key:
+            st.session_state["stored_groq_key"] = user_groq_key
+            os.environ["GROQ_API_KEY"] = user_groq_key
 
 # ---------------- KEYBOARD SHORTCUTS (JavaScript) ----------------
 KEYS_AND_SCROLL_JS = """
@@ -439,7 +443,6 @@ KEYS_AND_SCROLL_JS = """
     }
   };
   doc.addEventListener("keydown", P.__chandlioKeys, true);
-
   var oldBox = doc.getElementById("chandlio-scroll");
   if (oldBox) oldBox.remove();
 })();
@@ -457,15 +460,12 @@ def run_js(js_code):
 
 # ---------------- INPUT BAR ----------------
 def render_input_bar():
-    # Hidden button used by the Ctrl+U shortcut, and the JavaScript (rendered first,
-    # so the input bar below is the LAST element of the page and can stick to the bottom)
     st.button("hidden upload", key="hidden_upload", on_click=set_panel, args=("upload",))
     run_js(KEYS_AND_SCROLL_JS)
 
     with st.container(key="inputbar"):
         panel = st.session_state["panel"]
 
-        # ----- Panels opened from the + menu -----
         if panel == "screenshot":
             st.markdown("**📸 Take a screenshot**")
             res = screen_capture(trigger=st.session_state["shot_trigger"], key="screen_capture", default=None)
@@ -500,16 +500,15 @@ def render_input_bar():
             with c2:
                 st.button("✕ Close", key="close_newproject", on_click=close_panel)
 
-        # ----- Attached file chips -----
         for i, a in enumerate(st.session_state["attachments"]):
             st.button(f"📎 {a['name']}  ✕", key=f"rm_{i}", on_click=remove_attachment, args=(i,))
 
-        # ----- Text box (Enter sends, Shift+Enter = new line) -----
         st.text_area("Message", key="msg_box", placeholder="How can I help you today?",
                      height=68, label_visibility="collapsed")
 
-        # ----- Bottom row: + | Chat | ... | mic | send -----
-        c_plus, c_chat, c_space, c_mic, c_send = st.columns([1, 2, 6, 1.5, 1.2], vertical_alignment="center")
+        # Bottom row: + | Chat/Cowork | ... | model | mic | send
+        c_plus, c_chat, c_space, c_model, c_mic, c_send = st.columns(
+            [0.8, 2.6, 3.4, 2.6, 1.0, 0.9], vertical_alignment="center")
 
         with c_plus:
             with st.container(key="plus_wrap"):
@@ -554,7 +553,12 @@ def render_input_bar():
                         st.caption(notes.get(view, ""))
 
         with c_chat:
-            st.markdown("<div class='chat-pill'>Chat</div>", unsafe_allow_html=True)
+            st.markdown("<div class='seg'><span class='on'>Chat</span><span>Cowork</span></div>",
+                        unsafe_allow_html=True)
+
+        with c_model:
+            st.markdown(f"<div class='model-label'>{MODEL_LABEL}<span>{MODEL_NOTE}</span></div>",
+                        unsafe_allow_html=True)
 
         with c_mic:
             with st.container(key="mic_wrap"):
@@ -569,7 +573,19 @@ def render_input_bar():
                         st.caption("Update Streamlit to use voice input.")
 
         with c_send:
-            st.button("↑", key="send_btn", type="primary", on_click=send_message)
+            st.button(" ", icon=":material/keyboard_return:", key="send_btn", on_click=send_message)
+
+def render_starter_chips():
+    chips = [("Write", ":material/edit:", "Help me write "),
+             ("Learn", ":material/school:", "Teach me about "),
+             ("Code", ":material/code:", "Help me write code that "),
+             ("Life stuff", ":material/coffee:", "I need advice on "),
+             ("Chandlio’s choice", ":material/lightbulb:", "Surprise me with something interesting.")]
+    with st.container(key="chips"):
+        cols = st.columns(len(chips))
+        for col, (label, icon, text) in zip(cols, chips):
+            with col:
+                st.button(label, icon=icon, key=f"chip_{label}", on_click=set_starter, args=(text,))
 
 # ---------------- MAIN WINDOW ----------------
 if st.session_state.get("toast"):
@@ -578,7 +594,8 @@ if st.session_state.get("toast"):
 active_key = st.session_state["stored_groq_key"]
 
 if not active_key:
-    st.markdown("<br><br><h1 style='text-align: center; color: #ffffff;'>⚡ Welcome to Chandlio's AI Bot</h1>", unsafe_allow_html=True)
+    st.markdown(f"<div style='height:14vh'></div><div class='hero'><img src='{STAR_URI}'>Welcome to Chandlio</div>",
+                unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #a1a1aa;'>Please enter your free Groq API key in the left sidebar to unlock the application.</p>", unsafe_allow_html=True)
     st.stop()
 
@@ -597,12 +614,13 @@ try:
         if proj_name:
             st.caption(f"📁 Project: {proj_name}")
 
-        if not current_messages:
-            st.markdown("<br><br>", unsafe_allow_html=True)
-            st.markdown("<h1 style='text-align: center; color: #ffffff;'>It’s a high-speed AI session.</h1>", unsafe_allow_html=True)
-            st.markdown("<p style='text-align: center; color: #a1a1aa;'>How can I help you today?</p>", unsafe_allow_html=True)
+        if not current_messages and st.session_state["pending_prompt"] is None:
+            st.markdown(
+                f"<div style='height:12vh'></div>"
+                f"<div class='plan-wrap'><span class='plan-pill'>Free plan · Groq</span></div>"
+                f"<div class='hero'><img src='{STAR_URI}'>{GREETING}</div>",
+                unsafe_allow_html=True)
 
-        # Render messages
         for msg in current_messages:
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
@@ -615,7 +633,6 @@ try:
                     for img_url in msg["images"]:
                         st.markdown(f'<img src="{img_url}" style="width:100%; border-radius:10px; margin-top:10px;">', unsafe_allow_html=True)
 
-        # Handle a message sent from the custom input bar
         pending = st.session_state["pending_prompt"]
         if pending is not None:
             st.session_state["pending_prompt"] = None
@@ -664,7 +681,6 @@ try:
                 st.session_state["workspace_content"] = answer
                 st.rerun()
 
-    # Workspace Pane (Right side)
     if st.session_state["show_workspace"]:
         with workspace_pane:
             col_title, col_close = st.columns([4, 1])
@@ -679,8 +695,10 @@ try:
 except Exception as e:
     st.error(f"Error: {e}")
 
-# Custom Claude-style input bar (last element on the page, sticks to the bottom)
+# Input bar (sticky) + starter chips on an empty chat
 try:
     render_input_bar()
+    if not st.session_state["chat_sessions"][st.session_state["current_chat"]] and st.session_state["panel"] is None:
+        render_starter_chips()
 except Exception as e:
     st.error(f"Input bar failed to load: {e}")
