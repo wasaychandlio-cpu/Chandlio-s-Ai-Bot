@@ -6,34 +6,35 @@ import base64
 import hashlib
 import pathlib
 import tempfile
-
+import requests
+ 
 st.set_page_config(page_title="Chandlio's AI Bot", page_icon="⚡", layout="wide")
-
+ 
 GREETING = "Let’s have a think"      # <- change the home-screen heading here
 MODEL_LABEL, MODEL_NOTE = "gpt-oss-120b", "Fast"
-
+ 
 # Claude-style starburst logo (data URI so the markdown sanitizer keeps it)
 _STAR_SVG = ('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">'
              '<g stroke="#d97757" stroke-width="3.2" stroke-linecap="round">'
              + "".join(f'<line x1="20" y1="20" x2="20" y2="4" transform="rotate({a} 20 20)"/>' for a in range(0, 360, 30))
              + "</g></svg>")
 STAR_URI = "data:image/svg+xml;base64," + base64.b64encode(_STAR_SVG.encode()).decode()
-
+ 
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&display=swap');
 :root { --serif: "Source Serif 4", "Tiempos Text", Georgia, "Times New Roman", serif; }
-
+ 
 .stApp { background-color: #191919; color: #ffffff; }
 [data-testid="stHeader"] { background: transparent !important; }
 [data-testid="stToolbarActions"], [data-testid="stMainMenu"] { display: none !important; }
 h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !important; }
-.block-container { padding-top: 3rem !important; padding-bottom: 4rem !important; }
+.block-container, [data-testid="stMainBlockContainer"] { padding-top: 2rem !important; padding-bottom: 7rem !important; }
 .stMarkdown table { display: block; max-width: 100%; overflow-x: auto; }
 .stMarkdown pre, .stMarkdown code { white-space: pre-wrap !important; word-break: break-word; }
-.stMarkdown img, [data-testid="stImage"] img { max-width: 100% !important; height: auto; }
-.stMarkdown a { word-break: break-all; }
-
+.stMarkdown img, [data-testid="stImage"] img { max-width: 100% !important; height: auto; border-radius: 10px; }
+.stMarkdown a { word-break: break-word; }
+ 
 /* ---------- Home screen (serif heading + plan pill) ---------- */
 .plan-wrap { text-align: center; margin-bottom: 3.2rem; }
 .plan-pill { display: inline-block; background: #222; border: 1px solid #2f2f2f; color: #a8a8a8;
@@ -41,15 +42,30 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
 .hero { font-family: var(--serif); font-weight: 400; font-size: 3rem; color: #f5f4ef;
     display: flex; align-items: center; justify-content: center; gap: .9rem; margin: 0 0 1.8rem; line-height: 1.1; }
 .hero img { width: 40px; height: 40px; }
-
-/* ---------- Chat messages (user = box, assistant = serif text) ---------- */
+ 
+/* ---------- Chat messages (user = box, assistant = plain serif text) ---------- */
 [data-testid="stChatMessage"] { background: transparent !important; border: none !important; padding: .4rem 0 !important; }
 [data-testid="stChatMessageAvatarUser"], [data-testid="stChatMessageAvatarAssistant"],
 [data-testid="stChatMessageAvatarCustom"] { display: none !important; }
 [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) { background: #262626 !important; border-radius: 14px !important; padding: .7rem 1rem !important; }
 [data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) [data-testid="stMarkdownContainer"] {
-    font-family: var(--serif); font-size: 1.08rem; line-height: 1.7; color: #ececec; }
-
+    font-family: var(--serif); font-size: 1.05rem; line-height: 1.7; color: #ececec; }
+ 
+/* Simple answers: small headings, tidy lists, no divider lines */
+[data-testid="stChatMessage"] .stMarkdown h1,
+[data-testid="stChatMessage"] .stMarkdown h2,
+[data-testid="stChatMessage"] .stMarkdown h3,
+[data-testid="stChatMessage"] .stMarkdown h4 {
+    font-family: var(--serif); font-size: 1.1rem !important; font-weight: 600 !important; line-height: 1.4 !important;
+    margin: 1.1rem 0 .25rem 0 !important; padding: 0 !important; }
+[data-testid="stChatMessage"] .stMarkdown p,
+[data-testid="stChatMessage"] .stMarkdown li { font-size: 1.05rem; line-height: 1.7; }
+[data-testid="stChatMessage"] .stMarkdown ul,
+[data-testid="stChatMessage"] .stMarkdown ol { padding-left: 1.4rem; margin: .3rem 0; }
+[data-testid="stChatMessage"] .stMarkdown li { margin: .15rem 0; }
+[data-testid="stChatMessage"] .stMarkdown hr { display: none; }
+[data-testid="stChatMessage"] .stMarkdown strong { font-weight: 600; }
+ 
 /* ---------- Sidebar (flat Claude-style nav) ---------- */
 [data-testid="stSidebar"] { background-color: #1f1f1e; border-right: 1px solid #2a2a2a; }
 .brand { font-family: var(--serif); font-size: 1.7rem; color: #f5f4ef; padding: .2rem .4rem .6rem; }
@@ -65,11 +81,12 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
 [data-testid="stSidebar"] [data-testid="stBaseButton-primary"] { background: #2f2f2e !important; }
 [data-testid="stSidebar"] [data-testid="stExpander"] { border: none !important; }
 [data-testid="stSidebar"] .stTextInput input { background: #252525 !important; color: #fff !important; border: 1px solid #333 !important; border-radius: 8px !important; }
-
-/* ---------- Input bar (wide, sticky, rounded) ---------- */
+ 
+/* ---------- Input bar (medium width = same as the chat column, sticky, rounded) ---------- */
 [data-testid="stLayoutWrapper"]:has(> .st-key-inputbar),
 [data-testid="stElementContainer"]:has(> .st-key-inputbar) { display: contents !important; }
-.st-key-inputbar { position: sticky !important; bottom: 1rem; z-index: 999; width: 100%; margin: 1rem auto 0 auto;
+.st-key-inputbar { position: sticky !important; bottom: 1rem; z-index: 999;
+    width: 100%; max-width: 760px; margin: 1rem auto 0 auto;
     background: #2b2b2b; border: 1px solid #3d3d3d; border-radius: 22px; padding: 10px 14px 12px 14px;
     max-height: 75vh; overflow-y: auto; overflow-x: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.45); }
 .st-key-inputbar .stTextArea, .st-key-inputbar .stTextArea > div, .st-key-inputbar .stTextArea > div > div,
@@ -86,7 +103,7 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
 .st-key-inputbar [data-testid="stElementContainer"] { margin: 0 !important; }
 .st-key-inputbar [data-testid="stMarkdownContainer"] p { margin: 0 !important; }
 .st-key-inputbar button:focus, .st-key-inputbar button:focus-visible { outline: none !important; box-shadow: none !important; }
-
+ 
 /* + button, mic, send: flat icon buttons */
 .st-key-inputbar [data-testid="stPopover"] button, .st-key-send_btn button {
     background: transparent !important; border: none !important; color: #e6e6e6 !important;
@@ -96,7 +113,7 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
 .st-key-plus_wrap [data-testid="stPopover"] button svg,
 .st-key-plus_wrap [data-testid="stPopover"] button [data-testid="stIconMaterial"] { display: none !important; }
 .st-key-send_btn button { font-size: 1.3rem !important; }
-
+ 
 /* Chat | Cowork toggle + model label */
 .seg { display: inline-flex; background: #232323; border: 1px solid #3a3a3a; border-radius: 10px; padding: 2px; }
 .seg span { padding: 4px 13px; border-radius: 8px; color: #a8a8a8; font-size: .95rem; }
@@ -104,7 +121,7 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
 .model-label { text-align: right; white-space: nowrap; color: #fff; font-size: .95rem; }
 .model-label span { color: #9a9a9a; margin-left: .3rem; }
 @media (max-width: 640px) { .model-label { display: none; } }
-
+ 
 /* ---------- + menu (left aligned, compact, like Claude) ---------- */
 [data-testid="stPopoverBody"] { background: #2b2b2b !important; border: 1px solid #3d3d3d !important; border-radius: 16px !important;
     width: 330px !important; min-width: 330px !important; padding: .4rem !important; max-height: 85vh !important; }
@@ -123,14 +140,14 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
 .st-key-menu_connector button::after, .st-key-menu_design button::after { content: "›"; margin-left: auto; color: #aaa; font-size: 1.5rem; line-height: 1; }
 .st-key-menu_web_on button::after { content: "✓"; margin-left: auto; color: #4a9eff; font-size: 1.3rem; }
 .st-key-hidden_upload { display: none; }
-
+ 
 /* ---------- Starter chips under the input bar ---------- */
 .st-key-chips [data-testid="stHorizontalBlock"] { justify-content: center; flex-wrap: wrap !important; gap: .5rem !important; margin-top: 1.4rem; }
 .st-key-chips [data-testid="stColumn"] { flex: 0 0 auto !important; width: auto !important; min-width: 0 !important; }
 .st-key-chips button { background: #222 !important; border: 1px solid #333 !important; border-radius: 12px !important;
     color: #e0e0e0 !important; padding: .35rem .95rem !important; min-height: 2.4rem !important; }
 .st-key-chips button:hover { background: #2c2c2c !important; }
-
+ 
 /* ---------- Visible page scrollbar ---------- */
 [data-testid="stMain"], .stMain, section.main { overflow-y: scroll !important; }
 [data-testid="stMain"]::-webkit-scrollbar { width: 14px !important; background: #1e1e1e !important; }
@@ -139,7 +156,7 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
 [data-testid="stMain"]::-webkit-scrollbar-thumb:hover { background: #9a9a9a !important; }
 </style>
 """, unsafe_allow_html=True)
-
+ 
 # ---------------- SCREEN CAPTURE COMPONENT (browser share picker) ----------------
 SCREEN_CAPTURE_HTML = """<!DOCTYPE html>
 <html><head><meta charset="utf-8">
@@ -197,14 +214,14 @@ SCREEN_CAPTURE_HTML = """<!DOCTYPE html>
 </script>
 </body></html>
 """
-
+ 
 _COMPONENT_DIR = pathlib.Path(tempfile.gettempdir()) / "chandlio_screen_capture"
 _COMPONENT_DIR.mkdir(parents=True, exist_ok=True)
 _index_file = _COMPONENT_DIR / "index.html"
 if not _index_file.exists() or _index_file.read_text(encoding="utf-8") != SCREEN_CAPTURE_HTML:
     _index_file.write_text(SCREEN_CAPTURE_HTML, encoding="utf-8")
 screen_capture = components.declare_component("chandlio_screen_capture", path=str(_COMPONENT_DIR))
-
+ 
 # ---------------- SESSION STATE ----------------
 defaults = {
     "chat_sessions": {"New Chat": []},
@@ -227,26 +244,26 @@ defaults = {
 for k, v in defaults.items():
     if k not in st.session_state:
         st.session_state[k] = v
-
-# Wider centered column (wider still when the artifact workspace is open)
-_col_width = "1400px" if st.session_state["show_workspace"] else "860px"
+ 
+# Centered Claude-width column (wider only when the artifact workspace is open)
+_col_width = "1200px" if st.session_state["show_workspace"] else "760px"
 st.markdown(
     f"<style>.block-container {{ max-width: {_col_width} !important; margin: 0 auto !important; "
     f"padding-left: 1.2rem !important; padding-right: 1.2rem !important; }}</style>",
     unsafe_allow_html=True,
 )
-
+ 
 TEXT_EXT = (".txt", ".md", ".py", ".csv", ".json", ".js", ".html", ".css", ".xml",
             ".yaml", ".yml", ".log", ".sql", ".ini", ".toml")
-
+ 
 # ---------------- HELPERS ----------------
 def add_attachment(name, mime, data):
     if not any(a["name"] == name and len(a["data"]) == len(data) for a in st.session_state["attachments"]):
         st.session_state["attachments"].append({"name": name, "type": mime or "", "data": data})
-
+ 
 def is_image(f):
     return f["type"].startswith("image/") or f["name"].lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp"))
-
+ 
 def file_to_text(f, limit=6000):
     name = f["name"].lower()
     try:
@@ -265,7 +282,7 @@ def file_to_text(f, limit=6000):
     except Exception:
         return ""
     return text[:limit]
-
+ 
 def message_text(m):
     text = m["content"]
     for f in m.get("files", []):
@@ -278,9 +295,31 @@ def message_text(m):
             else:
                 text += f"\n\n[Attached file: {f['name']} (content could not be read)]"
     return text
-
+ 
+@st.cache_data(show_spinner=False)
+def fetch_wiki_image(title):
+    """Download the image on the server so the browser never has to hotlink it."""
+    try:
+        h = {"User-Agent": "ChandlioBot/1.0 (personal project)"}
+        r = requests.get(f"https://en.wikipedia.org/api/rest_v1/page/summary/{title}",
+                         headers=h, timeout=10)
+        thumb = r.json().get("thumbnail", {}).get("source")
+        if not thumb:
+            return None
+        big = thumb.replace("/320px-", "/1000px-")
+        for url in (big, thumb):
+            img = requests.get(url, headers=h, timeout=15)
+            if img.ok and img.headers.get("content-type", "").startswith("image/"):
+                return img.content
+    except Exception:
+        pass
+    return None
+ 
 def build_system_prompt():
-    base = "You are a helpful, direct, premium AI assistant modeled after Claude."
+    base = ("You are a helpful, direct assistant. Reply like Claude: natural conversational prose, "
+            "short paragraphs, no emojis, no horizontal rules and no big headings. "
+            "Use a short plain bullet or numbered list only when it really helps. "
+            "Put code in code blocks.")
     proj = st.session_state["chat_project"].get(st.session_state["current_chat"])
     if proj and proj in st.session_state["projects"]:
         p = st.session_state["projects"][proj]
@@ -292,43 +331,43 @@ def build_system_prompt():
             if t:
                 base += f"\n\n--- Project file: {f['name']} ---\n{t}"
     return base
-
+ 
 # ---------------- CALLBACKS ----------------
 def set_panel(name):
     st.session_state["panel"] = name
     st.session_state["menu_view"] = "main"
-
+ 
 def start_screenshot():
     st.session_state["panel"] = "screenshot"
     st.session_state["shot_trigger"] += 1
     st.session_state["menu_view"] = "main"
-
+ 
 def set_menu_view(view):
     st.session_state["menu_view"] = view
-
+ 
 def toggle_web_search():
     st.session_state["web_search"] = not st.session_state["web_search"]
-
+ 
 def show_plugins_note():
     st.session_state["toast"] = "No plugins available yet."
-
+ 
 def close_panel():
     st.session_state["panel"] = None
-
+ 
 def set_starter(text):
     st.session_state["msg_box"] = text
-
+ 
 def send_message():
     text = st.session_state["msg_box"].strip()
     if text or st.session_state["attachments"]:
         st.session_state["pending_prompt"] = text
         st.session_state["msg_box"] = ""
-
+ 
 def remove_attachment(i):
     if 0 <= i < len(st.session_state["attachments"]):
         st.session_state["attachments"].pop(i)
     st.session_state["upload_nonce"] += 1
-
+ 
 def create_project():
     name = st.session_state.get("new_project_name", "").strip()
     if not name:
@@ -347,7 +386,7 @@ def create_project():
     st.session_state["panel"] = None
     st.session_state["menu_view"] = "main"
     st.session_state["toast"] = f"Project '{name}' created and linked to this chat."
-
+ 
 def add_to_project(proj):
     if proj not in st.session_state["projects"]:
         return
@@ -358,10 +397,10 @@ def add_to_project(proj):
             files.append(a)
     st.session_state["menu_view"] = "main"
     st.session_state["toast"] = f"Added to project '{proj}'."
-
+ 
 def link_chat_to_project(proj):
     st.session_state["chat_project"][st.session_state["current_chat"]] = proj
-
+ 
 def transcribe_audio():
     audio = st.session_state.get("mic_audio")
     if audio is None:
@@ -376,12 +415,12 @@ def transcribe_audio():
         st.session_state["msg_box"] = (st.session_state["msg_box"] + " " + result.text).strip()
     except Exception as e:
         st.session_state["toast"] = f"Voice input failed: {e}"
-
+ 
 # ---------------- CLAUDE-STYLE SIDEBAR ----------------
 with st.sidebar:
     st.markdown("<div class='brand'>Chandlio</div>", unsafe_allow_html=True)
     _cur_empty = not st.session_state["chat_sessions"][st.session_state["current_chat"]]
-
+ 
     if st.button("New chat", icon=":material/add:", use_container_width=True, key="nav_new",
                  type="primary" if _cur_empty else "secondary"):
         new_title = f"Chat {len(st.session_state['chat_sessions']) + 1}"
@@ -389,11 +428,11 @@ with st.sidebar:
         st.session_state["current_chat"] = new_title
         st.session_state["show_workspace"] = False
         st.rerun()
-
+ 
     if st.button("Artifacts", icon=":material/widgets:", use_container_width=True, key="nav_artifacts"):
         st.session_state["show_workspace"] = True
         st.rerun()
-
+ 
     st.markdown("<div class='side-label'>Projects</div>", unsafe_allow_html=True)
     st.button("New project", icon=":material/create_new_folder:", use_container_width=True,
               key="side_new_project", on_click=set_panel, args=("newproject",))
@@ -402,7 +441,7 @@ with st.sidebar:
         st.button(f"{pname} ({len(pdata['files'])})", use_container_width=True, key=f"proj_{pname}",
                   icon=":material/check_circle:" if pname == active_proj else ":material/folder:",
                   on_click=link_chat_to_project, args=(pname,))
-
+ 
     st.markdown("<div class='side-label'>Chats and tasks</div>", unsafe_allow_html=True)
     for chat_name in list(st.session_state["chat_sessions"].keys())[::-1]:
         is_active = chat_name == st.session_state["current_chat"] and not _cur_empty
@@ -410,7 +449,7 @@ with st.sidebar:
                      type="primary" if is_active else "secondary"):
             st.session_state["current_chat"] = chat_name
             st.rerun()
-
+ 
     st.markdown("<div class='side-label'></div>", unsafe_allow_html=True)
     with st.expander("Chandlio · Free", icon=":material/settings:",
                      expanded=not st.session_state["stored_groq_key"]):
@@ -419,7 +458,7 @@ with st.sidebar:
         if user_groq_key:
             st.session_state["stored_groq_key"] = user_groq_key
             os.environ["GROQ_API_KEY"] = user_groq_key
-
+ 
 # ---------------- KEYBOARD SHORTCUTS (JavaScript) ----------------
 KEYS_AND_SCROLL_JS = """
 (function () {
@@ -447,7 +486,7 @@ KEYS_AND_SCROLL_JS = """
   if (oldBox) oldBox.remove();
 })();
 """
-
+ 
 def run_js(js_code):
     html = "<script>" + js_code + "</script>"
     try:
@@ -457,15 +496,15 @@ def run_js(js_code):
             st.html(html, unsafe_allow_javascript=True)
         except Exception:
             pass
-
+ 
 # ---------------- INPUT BAR ----------------
 def render_input_bar():
     st.button("hidden upload", key="hidden_upload", on_click=set_panel, args=("upload",))
     run_js(KEYS_AND_SCROLL_JS)
-
+ 
     with st.container(key="inputbar"):
         panel = st.session_state["panel"]
-
+ 
         if panel == "screenshot":
             st.markdown("**📸 Take a screenshot**")
             res = screen_capture(trigger=st.session_state["shot_trigger"], key="screen_capture", default=None)
@@ -480,7 +519,7 @@ def render_input_bar():
                 st.session_state["panel"] = None
                 st.rerun()
             st.button("✕ Close", key="close_shot", on_click=close_panel)
-
+ 
         elif panel == "upload":
             st.markdown("**📎 Upload or add files**")
             files = st.file_uploader("Add files", accept_multiple_files=True,
@@ -488,7 +527,7 @@ def render_input_bar():
             for f in files or []:
                 add_attachment(f.name, f.type, f.getvalue())
             st.button("✕ Close", key="close_upload", on_click=close_panel)
-
+ 
         elif panel == "newproject":
             st.markdown("**📁 New project**")
             st.text_input("Project name", key="new_project_name", placeholder="e.g. Trading Bot")
@@ -499,17 +538,17 @@ def render_input_bar():
                 st.button("Create project", on_click=create_project, key="do_create_project")
             with c2:
                 st.button("✕ Close", key="close_newproject", on_click=close_panel)
-
+ 
         for i, a in enumerate(st.session_state["attachments"]):
             st.button(f"📎 {a['name']}  ✕", key=f"rm_{i}", on_click=remove_attachment, args=(i,))
-
+ 
         st.text_area("Message", key="msg_box", placeholder="How can I help you today?",
                      height=68, label_visibility="collapsed")
-
+ 
         # Bottom row: + | Chat/Cowork | ... | model | mic | send
         c_plus, c_chat, c_space, c_model, c_mic, c_send = st.columns(
             [0.8, 2.6, 3.4, 2.6, 1.0, 0.9], vertical_alignment="center")
-
+ 
         with c_plus:
             with st.container(key="plus_wrap"):
                 with st.popover("＋"):
@@ -551,15 +590,15 @@ def render_input_bar():
                             "design": "No design systems yet.",
                         }
                         st.caption(notes.get(view, ""))
-
+ 
         with c_chat:
             st.markdown("<div class='seg'><span class='on'>Chat</span><span>Cowork</span></div>",
                         unsafe_allow_html=True)
-
+ 
         with c_model:
             st.markdown(f"<div class='model-label'>{MODEL_LABEL}<span>{MODEL_NOTE}</span></div>",
                         unsafe_allow_html=True)
-
+ 
         with c_mic:
             with st.container(key="mic_wrap"):
                 try:
@@ -571,10 +610,10 @@ def render_input_bar():
                         st.audio_input("Record a voice message", key="mic_audio", on_change=transcribe_audio)
                     else:
                         st.caption("Update Streamlit to use voice input.")
-
+ 
         with c_send:
             st.button(" ", icon=":material/keyboard_return:", key="send_btn", on_click=send_message)
-
+ 
 def render_starter_chips():
     chips = [("Write", ":material/edit:", "Help me write "),
              ("Learn", ":material/school:", "Teach me about "),
@@ -586,41 +625,41 @@ def render_starter_chips():
         for col, (label, icon, text) in zip(cols, chips):
             with col:
                 st.button(label, icon=icon, key=f"chip_{label}", on_click=set_starter, args=(text,))
-
+ 
 # ---------------- MAIN WINDOW ----------------
 if st.session_state.get("toast"):
     st.toast(st.session_state.pop("toast"))
-
+ 
 active_key = st.session_state["stored_groq_key"]
-
+ 
 if not active_key:
     st.markdown(f"<div style='height:14vh'></div><div class='hero'><img src='{STAR_URI}'>Welcome to Chandlio</div>",
                 unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #a1a1aa;'>Please enter your free Groq API key in the left sidebar to unlock the application.</p>", unsafe_allow_html=True)
     st.stop()
-
+ 
 try:
     from langchain_groq import ChatGroq
     llm = ChatGroq(model="openai/gpt-oss-120b", temperature=0.3, max_tokens=2048)
-
+ 
     if st.session_state["show_workspace"]:
         chat_pane, workspace_pane = st.columns([1, 1], gap="large")
     else:
         chat_pane = st.container()
-
+ 
     with chat_pane:
         current_messages = st.session_state["chat_sessions"][st.session_state["current_chat"]]
         proj_name = st.session_state["chat_project"].get(st.session_state["current_chat"])
         if proj_name:
             st.caption(f"📁 Project: {proj_name}")
-
+ 
         if not current_messages and st.session_state["pending_prompt"] is None:
             st.markdown(
                 f"<div style='height:12vh'></div>"
                 f"<div class='plan-wrap'><span class='plan-pill'>Free plan · Groq</span></div>"
                 f"<div class='hero'><img src='{STAR_URI}'>{GREETING}</div>",
                 unsafe_allow_html=True)
-
+ 
         for msg in current_messages:
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
@@ -629,10 +668,9 @@ try:
                         st.image(f["data"], width=300)
                     else:
                         st.caption(f"📎 {f['name']}")
-                if "images" in msg and msg["images"]:
-                    for img_url in msg["images"]:
-                        st.markdown(f'<img src="{img_url}" style="width:100%; border-radius:10px; margin-top:10px;">', unsafe_allow_html=True)
-
+                for img in msg.get("images", []):
+                    st.image(img, use_container_width=True)
+ 
         pending = st.session_state["pending_prompt"]
         if pending is not None:
             st.session_state["pending_prompt"] = None
@@ -640,10 +678,10 @@ try:
             st.session_state["attachments"] = []
             st.session_state["panel"] = None
             st.session_state["upload_nonce"] += 1
-
+ 
             prompt = pending or "(see attached files)"
             current_messages.append({"role": "user", "content": prompt, "files": files})
-
+ 
             with st.chat_message("user"):
                 st.markdown(prompt)
                 for f in files:
@@ -651,16 +689,16 @@ try:
                         st.image(f["data"], width=300)
                     else:
                         st.caption(f"📎 {f['name']}")
-
+ 
             with st.chat_message("assistant"):
                 with st.spinner("Thinking..."):
                     lower_prompt = prompt.lower()
                     if "switzerland" in lower_prompt or "swiss" in lower_prompt or "pictures" in lower_prompt:
-                        answer = "Here are stunning views of Switzerland for you to explore:"
-                        found_images = [
-                            "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Matterhorn_from_Gornergrat_%28cropped%29.jpg/1200px-Matterhorn_from_Gornergrat_%28cropped%29.jpg",
-                            "https://upload.wikimedia.org/wikipedia/commons/thumb/8/87/Interlaken_and_Jungfrau_03.jpg/1200px-Interlaken_and_Jungfrau_03.jpg"
-                        ]
+                        answer = "Here are some views of Switzerland:"
+                        found_images = [b for b in (fetch_wiki_image(t) for t in
+                                        ["Matterhorn", "Jungfrau", "Lake_Lucerne"]) if b]
+                        if not found_images:
+                            answer = "I couldn't load the images right now. Please try again."
                     else:
                         messages_payload = [("system", build_system_prompt())]
                         for m in current_messages:
@@ -668,33 +706,31 @@ try:
                         response = llm.invoke(messages_payload)
                         answer = response.content
                         found_images = []
-
+ 
                     st.markdown(answer)
-                    if found_images:
-                        for img in found_images:
-                            st.markdown(f'<img src="{img}" style="width:100%; border-radius:10px; margin-top:10px;">', unsafe_allow_html=True)
-
+                    for img in found_images:
+                        st.image(img, use_container_width=True)
+ 
             current_messages.append({"role": "assistant", "content": answer, "images": found_images})
-
-            if "```" in answer or len(answer) > 300:
-                st.session_state["show_workspace"] = True
+ 
+            # Keep the latest code answer for the Artifacts button, but do NOT split the screen automatically
+            if "```" in answer:
                 st.session_state["workspace_content"] = answer
-                st.rerun()
-
+ 
     if st.session_state["show_workspace"]:
         with workspace_pane:
             col_title, col_close = st.columns([4, 1])
             with col_title:
-                st.markdown("<h3 style='color: #ffffff;'>🖥️ Artifact Workspace</h3>", unsafe_allow_html=True)
+                st.markdown("<h3 style='color: #ffffff;'>Artifacts</h3>", unsafe_allow_html=True)
             with col_close:
                 if st.button("✕ Close"):
                     st.session_state["show_workspace"] = False
                     st.rerun()
             st.code(st.session_state["workspace_content"], language="markdown")
-
+ 
 except Exception as e:
     st.error(f"Error: {e}")
-
+ 
 # Input bar (sticky) + starter chips on an empty chat
 try:
     render_input_bar()
@@ -702,3 +738,4 @@ try:
         render_starter_chips()
 except Exception as e:
     st.error(f"Input bar failed to load: {e}")
+ 
