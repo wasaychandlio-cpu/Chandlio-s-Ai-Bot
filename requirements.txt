@@ -1,2 +1,7 @@
 streamlit
 langchain-groq
+requests
+beautifulsoup4
+ddgs
+pypdf
+python-docx
