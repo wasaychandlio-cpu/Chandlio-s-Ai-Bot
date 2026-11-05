@@ -28,28 +28,23 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
 .stChatMessage.assistant { background-color: #191919; border: 1px solid #2a2a2a; border-radius: 12px; color: #ffffff; }
 
 /* ---------- Fit screen: everything must fit inside the centered column ---------- */
-.block-container { padding-top: 3rem !important; padding-bottom: 220px !important; }
+.block-container { padding-top: 3rem !important; padding-bottom: 4rem !important; }
 .stMarkdown table { display: block; max-width: 100%; overflow-x: auto; }
 .stMarkdown pre, .stMarkdown code { white-space: pre-wrap !important; word-break: break-word; }
 .stMarkdown img, [data-testid="stImage"] img { max-width: 100% !important; height: auto; }
 .stMarkdown a { word-break: break-all; }
 
-/* ---------- Claude-style input bar (medium size, centered) ---------- */
+/* ---------- Claude-style input bar (medium size, centered, sticks to the bottom) ---------- */
+/* make the wrapper around the bar "disappear" so sticky works against the chat column */
+[data-testid="stLayoutWrapper"]:has(> .st-key-inputbar),
+[data-testid="stElementContainer"]:has(> .st-key-inputbar) { display: contents !important; }
+
 .st-key-inputbar {
-    position: fixed; bottom: 1rem; left: 0; right: 0; margin: 0 auto; z-index: 999;
-    width: min(700px, calc(100% - 2rem));
+    position: sticky !important; bottom: 1rem; z-index: 999;
+    width: 100%; max-width: 700px; margin: 1rem auto 0 auto;
     background: #2b2b2b; border: 1px solid #3d3d3d; border-radius: 22px;
     padding: 10px 14px 8px 14px; max-height: 75vh; overflow-y: auto;
     box-shadow: 0 4px 24px rgba(0,0,0,0.45);
-}
-/* when the sidebar is open, center the bar in the remaining space */
-.stApp:has(section[data-testid="stSidebar"][aria-expanded="true"]) .st-key-inputbar {
-    left: 21rem; width: min(700px, calc(100% - 21rem - 2rem));
-}
-@media (max-width: 900px) {
-    .stApp:has(section[data-testid="stSidebar"][aria-expanded="true"]) .st-key-inputbar {
-        left: 0; width: calc(100% - 2rem);
-    }
 }
 
 /* text area: no inner box, no resize handle, no hint text */
@@ -107,6 +102,37 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
 .st-key-menu_upload button::after { content: "Ctrl+U"; margin-left: auto; color: #9a9a9a; font-size: 0.9rem; padding-left: 2rem; }
 .st-key-menu_project button::after { content: "›"; margin-left: auto; color: #aaaaaa; font-size: 1.5rem; padding-left: 2rem; }
 .st-key-hidden_upload { display: none; }
+
+/* ---------- Visible page up/down scrollbar on the right side ---------- */
+[data-testid="stMain"], .stMain, section.main { overflow-y: scroll !important; }
+[data-testid="stMain"]::-webkit-scrollbar,
+.stMain::-webkit-scrollbar,
+section.main::-webkit-scrollbar { width: 16px !important; background: #1e1e1e !important; }
+[data-testid="stMain"]::-webkit-scrollbar-track,
+.stMain::-webkit-scrollbar-track,
+section.main::-webkit-scrollbar-track { background: #1e1e1e !important; }
+[data-testid="stMain"]::-webkit-scrollbar-thumb,
+.stMain::-webkit-scrollbar-thumb,
+section.main::-webkit-scrollbar-thumb { background: #6b6b6b !important; border-radius: 8px !important; border: 3px solid #1e1e1e !important; }
+[data-testid="stMain"]::-webkit-scrollbar-thumb:hover,
+.stMain::-webkit-scrollbar-thumb:hover,
+section.main::-webkit-scrollbar-thumb:hover { background: #9a9a9a !important; }
+[data-testid="stMain"]::-webkit-scrollbar-button:single-button,
+.stMain::-webkit-scrollbar-button:single-button,
+section.main::-webkit-scrollbar-button:single-button {
+    display: block !important; height: 18px !important; background-color: #1e1e1e !important;
+    background-repeat: no-repeat !important; background-position: center !important; background-size: 10px !important;
+}
+[data-testid="stMain"]::-webkit-scrollbar-button:single-button:vertical:decrement,
+.stMain::-webkit-scrollbar-button:single-button:vertical:decrement,
+section.main::-webkit-scrollbar-button:single-button:vertical:decrement {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><path d='M1 7 L5 3 L9 7' fill='none' stroke='%23bbbbbb' stroke-width='2'/></svg>") !important;
+}
+[data-testid="stMain"]::-webkit-scrollbar-button:single-button:vertical:increment,
+.stMain::-webkit-scrollbar-button:single-button:vertical:increment,
+section.main::-webkit-scrollbar-button:single-button:vertical:increment {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'><path d='M1 3 L5 7 L9 3' fill='none' stroke='%23bbbbbb' stroke-width='2'/></svg>") !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -372,8 +398,52 @@ with st.sidebar:
         st.session_state["stored_groq_key"] = user_groq_key
         os.environ["GROQ_API_KEY"] = user_groq_key
 
+# ---------------- KEYBOARD SHORTCUTS (JavaScript) ----------------
+KEYS_AND_SCROLL_JS = """
+(function () {
+  var P = window.parent, doc = P.document;
+  if (P.__chandlioKeys) { doc.removeEventListener("keydown", P.__chandlioKeys, true); }
+  P.__chandlioKeys = function (e) {
+    var t = e.target;
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing && t && t.tagName === "TEXTAREA"
+        && t.closest(".st-key-inputbar")) {
+      e.preventDefault(); e.stopPropagation();
+      t.blur();
+      setTimeout(function () {
+        var b = doc.querySelector(".st-key-send_btn button");
+        if (b) b.click();
+      }, 150);
+    }
+    if ((e.ctrlKey || e.metaKey) && (e.key === "u" || e.key === "U")) {
+      e.preventDefault();
+      var h = doc.querySelector(".st-key-hidden_upload button");
+      if (h) h.click();
+    }
+  };
+  doc.addEventListener("keydown", P.__chandlioKeys, true);
+
+  var oldBox = doc.getElementById("chandlio-scroll");
+  if (oldBox) oldBox.remove();
+})();
+"""
+
+def run_js(js_code):
+    html = "<script>" + js_code + "</script>"
+    try:
+        components.html(html, height=0)
+    except Exception:
+        try:
+            st.html(html, unsafe_allow_javascript=True)
+        except Exception:
+            pass
+
 # ---------------- INPUT BAR ----------------
 def render_input_bar():
+    # Hidden button used by the Ctrl+U shortcut, and the JavaScript (rendered first,
+    # so the input bar below is the LAST element of the page and can stick to the bottom)
+    st.button("hidden upload", key="hidden_upload", on_click=set_panel, args=("upload",))
+    run_js(KEYS_AND_SCROLL_JS)
+
     with st.container(key="inputbar"):
         panel = st.session_state["panel"]
 
@@ -447,7 +517,11 @@ def render_input_bar():
 
         with c_mic:
             with st.container(key="mic_wrap"):
-                with st.popover(" ", icon=":material/mic:"):
+                try:
+                    mic_pop = st.popover(" ", icon=":material/mic:")
+                except Exception:
+                    mic_pop = st.popover("🎤")
+                with mic_pop:
                     if hasattr(st, "audio_input"):
                         st.audio_input("Record a voice message", key="mic_audio", on_change=transcribe_audio)
                     else:
@@ -455,77 +529,6 @@ def render_input_bar():
 
         with c_send:
             st.button("↑", key="send_btn", type="primary", on_click=send_message)
-
-    # Hidden button used by the Ctrl+U shortcut
-    st.button("hidden upload", key="hidden_upload", on_click=set_panel, args=("upload",))
-
-    # Enter = send, Shift+Enter = new line, Ctrl+U = upload, floating page up/down buttons
-    components.html("""
-    <script>
-    (function () {
-      var P = window.parent, doc = P.document;
-
-      /* ---- keyboard: Enter sends, Ctrl+U uploads ---- */
-      if (P.__chandlioKeys) { doc.removeEventListener("keydown", P.__chandlioKeys, true); }
-      P.__chandlioKeys = function (e) {
-        var t = e.target;
-        if (e.key === "Enter" && !e.shiftKey && !e.isComposing && t && t.tagName === "TEXTAREA"
-            && t.closest(".st-key-inputbar")) {
-          e.preventDefault(); e.stopPropagation();
-          t.blur();
-          setTimeout(function () {
-            var b = doc.querySelector(".st-key-send_btn button");
-            if (b) b.click();
-          }, 150);
-        }
-        if ((e.ctrlKey || e.metaKey) && (e.key === "u" || e.key === "U")) {
-          e.preventDefault();
-          var h = doc.querySelector(".st-key-hidden_upload button");
-          if (h) h.click();
-        }
-      };
-      doc.addEventListener("keydown", P.__chandlioKeys, true);
-
-      /* ---- floating page up / page down buttons ---- */
-      var oldBox = doc.getElementById("chandlio-scroll");
-      if (oldBox) oldBox.remove();
-      var oldStyle = doc.getElementById("chandlio-scroll-style");
-      if (oldStyle) oldStyle.remove();
-
-      var styleEl = doc.createElement("style");
-      styleEl.id = "chandlio-scroll-style";
-      styleEl.textContent =
-        "#chandlio-scroll{position:fixed;right:1.2rem;bottom:9rem;display:flex;flex-direction:column;gap:8px;z-index:1000}" +
-        "#chandlio-scroll button{width:38px;height:38px;border-radius:50%;border:1px solid #4a4a4a;background:#2b2b2b;" +
-        "color:#fff;font-size:16px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.4)}" +
-        "#chandlio-scroll button:hover{background:#3d3d3d}";
-      doc.head.appendChild(styleEl);
-
-      function scroller() {
-        return doc.querySelector('[data-testid="stMain"]') || doc.querySelector("section.main") || doc.scrollingElement;
-      }
-      function makeBtn(label, title, dir) {
-        var b = doc.createElement("button");
-        b.textContent = label;
-        b.title = title;
-        b.onclick = function () {
-          var s = scroller();
-          s.scrollBy({top: dir * s.clientHeight * 0.85, behavior: "smooth"});
-        };
-        b.ondblclick = function () {
-          var s = scroller();
-          s.scrollTo({top: dir < 0 ? 0 : s.scrollHeight, behavior: "smooth"});
-        };
-        return b;
-      }
-      var box = doc.createElement("div");
-      box.id = "chandlio-scroll";
-      box.appendChild(makeBtn("▲", "Page up (double-click: jump to first message)", -1));
-      box.appendChild(makeBtn("▼", "Page down (double-click: jump to chatbox)", 1));
-      doc.body.appendChild(box);
-    })();
-    </script>
-    """, height=0)
 
 # ---------------- MAIN WINDOW ----------------
 if st.session_state.get("toast"):
@@ -635,4 +638,8 @@ try:
 except Exception as e:
     st.error(f"Error: {e}")
 
-# Custom
+# Custom Claude-style input bar (last element on the page, sticks to the bottom)
+try:
+    render_input_bar()
+except Exception as e:
+    st.error(f"Input bar failed to load: {e}")
