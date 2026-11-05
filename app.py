@@ -141,15 +141,19 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
 /* Chat | Cowork toggle (bottom-left of the box) */
 .st-key-mode_wrap [data-testid="stButtonGroup"], .st-key-mode_wrap [role="radiogroup"] {
     background: #222; border: 1px solid #353535; border-radius: 12px; padding: 2px; gap: 2px; width: fit-content; }
-.st-key-mode_wrap [data-testid="stBaseButton-segmented_control"] {
-    background: transparent !important; border: none !important; color: #9a9a9a !important;
+.st-key-mode_wrap [data-testid^="stBaseButton-segmented"], .st-key-mode_wrap [role="radiogroup"] label {
+    background: transparent !important; border: none !important; outline: none !important; color: #9a9a9a !important;
     border-radius: 9px !important; min-height: 2rem !important; padding: 0 .9rem !important; box-shadow: none !important; }
-.st-key-mode_wrap [data-testid="stBaseButton-segmented_controlActive"] {
-    background: #3a3a3a !important; border: none !important; color: #fff !important;
-    border-radius: 9px !important; min-height: 2rem !important; padding: 0 .9rem !important; box-shadow: none !important; }
+.st-key-mode_wrap [data-testid^="stBaseButton-segmented"] p { color: inherit !important; }
+.st-key-mode_wrap [data-testid^="stBaseButton-segmented"][data-testid$="Active"],
+.st-key-mode_wrap [data-testid^="stBaseButton-segmented"][aria-pressed="true"],
+.st-key-mode_wrap [data-testid^="stBaseButton-segmented"][aria-checked="true"] {
+    background: #3a3a3a !important; color: #ffffff !important; border: none !important; outline: none !important; }
 
 /* model label inside the box (bottom-right) */
-.mdl-in { color: #ffffff; white-space: nowrap; text-align: right; font-size: .95rem; }
+.st-key-inputbar [data-testid="stMarkdown"], .st-key-inputbar [data-testid="stMarkdownContainer"] { margin: 0 !important; padding: 0 !important; }
+.mdl-in { color: #ffffff; white-space: nowrap; font-size: .95rem; height: 2.4rem; line-height: 2.4rem;
+    display: flex; align-items: center; justify-content: flex-end; }
 .mdl-in b { color: #9a9a9a; font-weight: 400; margin-left: .35rem; }
 @media (max-width: 640px) { .mdl-in { display: none; } }
 
@@ -219,13 +223,10 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
 [data-testid="stSidebar"] [data-testid="stBaseButton-primary"] { background: #3a3a39 !important; }
 
 /* ---------- Account row pinned to the bottom of the sidebar ---------- */
-[data-testid="stSidebarUserContent"] { padding-bottom: 0 !important; }
-[data-testid="stSidebarUserContent"] > [data-testid="stVerticalBlock"],
-[data-testid="stSidebarUserContent"] > div > [data-testid="stVerticalBlock"] { min-height: calc(100vh - 2.5rem); }
-[data-testid="stLayoutWrapper"]:has(> .st-key-account_wrap),
-[data-testid="stElementContainer"]:has(> .st-key-account_wrap) {
-    margin-top: auto !important; position: sticky; bottom: 0; z-index: 5; background: #1f1f1e; }
-.st-key-account_wrap { border-top: 1px solid #2a2a2a; padding: .6rem 0 .6rem 0; background: #1f1f1e; }
+[data-testid="stSidebarUserContent"] { padding-bottom: 5.5rem !important; }
+.st-key-account_wrap { position: fixed !important; left: 0; bottom: 0; width: var(--sbw, 21rem); box-sizing: border-box;
+    z-index: 1000; border-top: 1px solid #2a2a2a; padding: .7rem 1rem .8rem 1rem; background: #1f1f1e; }
+html[data-sbcollapsed] .st-key-account_wrap { display: none !important; }
 .st-key-side_account button { display: flex !important; align-items: center !important; gap: .7rem; width: 100%; font-size: 1.05rem !important; }
 .st-key-side_account button::before { content: "C"; flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%;
     background: #3a3a39; color: #e8e8e8; display: inline-flex; align-items: center; justify-content: center; font-size: .85rem; }
@@ -625,7 +626,8 @@ with st.sidebar:
     st.markdown(f"<div class='side-head'><span>Chats and tasks &#9662;</span>{FILTER_SVG}</div>",
                 unsafe_allow_html=True)
 
-    names = list(st.session_state["chat_sessions"].keys())[::-1]
+    names = [n for n, msgs in st.session_state["chat_sessions"].items()
+             if msgs or (n == st.session_state["current_chat"] and st.session_state["pending_prompt"] is not None)][::-1]
     if search_q:
         names = [n for n in names if search_q in chat_title(n).lower()]
     limit = len(names) if (st.session_state["show_all_chats"] or search_q) else 8
@@ -721,7 +723,8 @@ KEYS_AND_SCROLL_JS = """
     var sb = doc.querySelector('[data-testid="stSidebar"]');
     var w = 0;
     if (sb) { w = Math.round(sb.getBoundingClientRect().right); }
-    if (w < 8) { w = 56; }                       /* sidebar collapsed: leave room for the expand button */
+    if (w < 8) { w = 56; doc.documentElement.setAttribute("data-sbcollapsed", "1"); }   /* collapsed: leave room for the expand button */
+    else { doc.documentElement.removeAttribute("data-sbcollapsed"); }
     doc.documentElement.style.setProperty("--sbw", w + "px");
   }
   setSbw();
@@ -958,8 +961,7 @@ try:
 
         if not current_messages and st.session_state["pending_prompt"] is None:
             st.markdown(
-                f"<div style='height:12vh'></div>"
-                f"<div class='plan-wrap'><span class='plan-pill'>Free plan · Groq</span></div>"
+                f"<div style='height:16vh'></div>"
                 f"<div class='hero'><img src='{STAR_URI}'>{GREETING}</div>",
                 unsafe_allow_html=True)
 
