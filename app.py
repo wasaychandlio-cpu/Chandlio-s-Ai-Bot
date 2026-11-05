@@ -13,6 +13,7 @@ st.set_page_config(page_title="Chandlio's AI Bot", page_icon="⚡", layout="wide
 
 GREETING = "Let’s have a think"      # <- change the home-screen heading here
 MODEL_LABEL, MODEL_NOTE = "gpt-oss-120b", "Fast"
+ACCOUNT_EMAIL = "mabdulwasay81@gmail.com"
 
 # Claude-style starburst logo (data URI so the markdown sanitizer keeps it)
 _STAR_SVG = ('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">'
@@ -184,6 +185,26 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
 .side-head svg { stroke: #e8e8e8; fill: none; stroke-width: 1.8; stroke-linecap: round; }
 .st-key-view_all button { color: #9a9a9a !important; }
 [data-testid="stSidebar"] [data-testid="stBaseButton-primary"] { background: #3a3a39 !important; }
+
+/* ---------- Input pill: message on top, tools row below ---------- */
+.st-key-pill { border-radius: 22px; padding: 10px 14px 8px; }
+.st-key-inputbar .stTextArea textarea { padding: 6px 4px 10px !important; }
+.mdl-inline { color: #fff; font-size: .95rem; text-align: right; white-space: nowrap; }
+.mdl-inline span { color: #9a9a9a; margin-left: .3rem; }
+.st-key-mode_wrap [role="radiogroup"], .st-key-mode_wrap [data-baseweb="button-group"] {
+    background: #222; border: 1px solid #333; border-radius: 10px; }
+
+/* ---------- Account row pinned to the bottom of the sidebar ---------- */
+.st-key-acct_wrap { position: fixed; bottom: 0; left: 0; width: var(--sbw, 21rem);
+    background: #1f1f1e; border-top: 1px solid #2a2a2a; padding: .6rem; z-index: 100; }
+.st-key-acct_wrap button { width: 100%; justify-content: space-between !important; }
+.st-key-acct_wrap button::before { content: "C"; display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 50%; background: #3a3a3a; font-size: .8rem; margin-right: .6rem; flex: 0 0 auto; }
+
+/* ---------- Account menu items ---------- */
+.acct-email { color: #9a9a9a; font-size: .95rem; padding: .45rem .7rem .3rem; }
+.st-key-menu_acct_settings button::after { content: "Ctrl+Shift+,"; margin-left: auto; color: #9a9a9a; font-size: .95rem; }
+.st-key-menu_acct_learn button::after { content: "›"; margin-left: auto; color: #aaa; font-size: 1.5rem; line-height: 1; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -274,6 +295,7 @@ defaults = {
     "show_projects": False,
     "show_search": False,
     "show_all_chats": False,
+    "show_settings": False,
     "scroll_bottom": False,       # when True, the page scrolls to the newest message
 }
 for k, v in defaults.items():
@@ -482,6 +504,10 @@ def add_to_project(proj):
 def link_chat_to_project(proj):
     st.session_state["chat_project"][st.session_state["current_chat"]] = proj
 
+def logout():
+    st.session_state["stored_groq_key"] = ""
+    os.environ.pop("GROQ_API_KEY", None)
+
 def transcribe_audio():
     audio = st.session_state.get("mic_audio")
     if audio is None:
@@ -552,18 +578,39 @@ with st.sidebar:
             st.session_state["current_chat"] = chat_name
             st.session_state["scroll_bottom"] = True
             st.rerun()
-    if len(names) > 8 and not search_q:
+    if not search_q:
         st.button("Show less" if st.session_state["show_all_chats"] else "View all", key="view_all",
                   use_container_width=True, on_click=toggle_state, args=("show_all_chats",))
 
-    st.markdown("<div class='side-label'></div>", unsafe_allow_html=True)
-    with st.expander("Chandlio · Free", icon=":material/settings:",
-                     expanded=not st.session_state["stored_groq_key"]):
+    st.markdown("<div style='height:4.5rem'></div>", unsafe_allow_html=True)  # room for the pinned account row
+
+    # Groq key box: shown automatically when no key is set, or via Settings
+    if st.session_state["show_settings"] or not st.session_state["stored_groq_key"]:
         user_groq_key = st.text_input("Groq API Key", value=st.session_state["stored_groq_key"],
                                       type="password", placeholder="gsk_...")
         if user_groq_key:
             st.session_state["stored_groq_key"] = user_groq_key
             os.environ["GROQ_API_KEY"] = user_groq_key
+
+    with st.container(key="acct_wrap"):
+        with st.popover("Chandlio · Free", use_container_width=True):
+            st.markdown(f"<div class='acct-email'>{ACCOUNT_EMAIL}</div>", unsafe_allow_html=True)
+            st.button("Settings", icon=":material/settings:", key="menu_acct_settings", use_container_width=True,
+                      on_click=toggle_state, args=("show_settings",))
+            st.button("Language", icon=":material/language:", key="menu_acct_lang", use_container_width=True,
+                      on_click=soon, args=("Language is not available yet.",))
+            st.button("Get help", icon=":material/help:", key="menu_acct_help", use_container_width=True,
+                      on_click=soon, args=("Help is not available yet.",))
+            st.divider()
+            st.button("Upgrade plan", icon=":material/arrow_circle_up:", key="menu_acct_upgrade", use_container_width=True,
+                      on_click=soon, args=("Upgrade is not available yet.",))
+            st.button("Get apps and extensions", icon=":material/devices:", key="menu_acct_apps", use_container_width=True,
+                      on_click=soon, args=("Apps and extensions are not available yet.",))
+            st.button("Learn more", icon=":material/info:", key="menu_acct_learn", use_container_width=True,
+                      on_click=soon, args=("Nothing to show yet.",))
+            st.divider()
+            st.button("Log out", icon=":material/logout:", key="menu_acct_logout", use_container_width=True,
+                      on_click=logout)
 
 # ---------------- JAVASCRIPT (shortcuts, top-bar offset, auto-grow, auto-scroll) ----------------
 KEYS_AND_SCROLL_JS = """
@@ -700,8 +747,11 @@ def render_input_bar():
             for i, a in enumerate(st.session_state["attachments"]):
                 st.button(f"📎 {a['name']}  ✕", key=f"rm_{i}", on_click=remove_attachment, args=(i,))
 
-            # One compact row, like Claude:  +  |  message  |  mic  |  send
-            c_plus, c_text, c_mic, c_send = st.columns([0.7, 8.6, 0.8, 0.8], vertical_alignment="bottom")
+            # Row 1: the message box.  Row 2: +  |  Chat/Cowork  |  model  |  mic  |  send
+            st.text_area("Message", key="msg_box", placeholder="How can I help you today?",
+                         height=68, label_visibility="collapsed")
+            c_plus, c_mode, c_model, c_mic, c_send = st.columns([0.8, 3.2, 4.2, 0.9, 0.9],
+                                                                vertical_alignment="center")
 
             with c_plus:
                 with st.container(key="plus_wrap"):
@@ -745,9 +795,18 @@ def render_input_bar():
                             }
                             st.caption(notes.get(view, ""))
 
-            with c_text:
-                st.text_area("Message", key="msg_box", placeholder="How can I help you today?",
-                             height=68, label_visibility="collapsed")
+            with c_mode:
+                with st.container(key="mode_wrap"):
+                    if hasattr(st, "segmented_control"):
+                        st.segmented_control("Mode", ["Chat", "Cowork"], default="Chat", key="mode",
+                                             label_visibility="collapsed")
+                    else:
+                        st.radio("Mode", ["Chat", "Cowork"], horizontal=True, key="mode",
+                                 label_visibility="collapsed")
+
+            with c_model:
+                st.markdown(f"<div class='mdl-inline'>{MODEL_LABEL}<span>{MODEL_NOTE}</span> ⌄</div>",
+                            unsafe_allow_html=True)
 
             with c_mic:
                 with st.container(key="mic_wrap"):
@@ -767,8 +826,7 @@ def render_input_bar():
         if has_msgs or st.session_state["pending_prompt"] is not None:
             st.markdown(
                 f"<div class='input-foot'><span class='dis'>Chandlio is AI and can make mistakes. "
-                f"Please double-check responses.</span>"
-                f"<span class='mdl'>{MODEL_LABEL}<b>{MODEL_NOTE}</b></span></div>",
+                f"Please double-check responses.</span></div>",
                 unsafe_allow_html=True)
 
 def render_starter_chips():
