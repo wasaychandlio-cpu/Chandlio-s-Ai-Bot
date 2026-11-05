@@ -36,6 +36,10 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
 .stMarkdown img, [data-testid="stImage"] img { max-width: 100% !important; height: auto; border-radius: 10px; }
 .stMarkdown a { word-break: break-word; }
 
+/* zero-height helper iframes (JS runners) must not add gaps to the layout */
+[data-testid="stElementContainer"]:has(> iframe[height="0"]) {
+    position: absolute !important; width: 0 !important; height: 0 !important; overflow: hidden !important; margin: 0 !important; }
+
 /* ---------- Home screen (serif heading + plan pill) ---------- */
 .plan-wrap { text-align: center; margin-bottom: 3.2rem; }
 .plan-pill { display: inline-block; background: #222; border: 1px solid #2f2f2f; color: #a8a8a8;
@@ -74,32 +78,36 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
 [data-testid="stSidebar"] [data-testid="stVerticalBlock"] { gap: .15rem; }
 [data-testid="stSidebar"] button { background: transparent !important; border: none !important; color: #e8e8e8 !important;
     justify-content: flex-start !important; text-align: left !important; padding: .42rem .7rem !important;
-    border-radius: 10px !important; min-height: 0 !important; font-size: 1rem !important; box-shadow: none !important; }
+    border-radius: 10px !important; min-height: 0 !important; font-size: 1rem !important; box-shadow: none !important;
+    overflow: hidden; }
 [data-testid="stSidebar"] button > div, [data-testid="stSidebar"] button [data-testid="stMarkdownContainer"] {
-    justify-content: flex-start !important; text-align: left !important; width: auto; }
-[data-testid="stSidebar"] button p { text-align: left !important; }
+    justify-content: flex-start !important; text-align: left !important; width: auto; min-width: 0; }
+[data-testid="stSidebar"] button p { text-align: left !important; white-space: nowrap !important;
+    overflow: hidden; text-overflow: ellipsis; }
 [data-testid="stSidebar"] button:hover { background: #2a2a29 !important; }
 [data-testid="stSidebar"] [data-testid="stBaseButton-primary"] { background: #2f2f2e !important; }
 [data-testid="stSidebar"] [data-testid="stExpander"] { border: none !important; }
 [data-testid="stSidebar"] .stTextInput input { background: #252525 !important; color: #fff !important; border: 1px solid #333 !important; border-radius: 8px !important; }
 
-/* ---------- Input bar (medium width = same as the chat column, sticky, rounded) ---------- */
+/* ---------- Input bar: compact one-row pill docked at the bottom (like Claude) ---------- */
 [data-testid="stLayoutWrapper"]:has(> .st-key-inputbar),
 [data-testid="stElementContainer"]:has(> .st-key-inputbar) { display: contents !important; }
-.st-key-inputbar { position: sticky !important; bottom: 1rem; z-index: 999;
+.st-key-inputbar { position: sticky !important; bottom: 0; z-index: 999;
     width: 100%; max-width: 760px; margin: 1rem auto 0 auto;
-    background: #2b2b2b; border: 1px solid #3d3d3d; border-radius: 22px; padding: 10px 14px 12px 14px;
-    max-height: 75vh; overflow-y: auto; overflow-x: hidden; box-shadow: 0 4px 24px rgba(0,0,0,0.45); }
+    background: #191919; padding: .5rem 0 .3rem 0; }
+.st-key-pill { background: #2b2b2b; border: 1px solid #3d3d3d; border-radius: 28px;
+    padding: 8px 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.45); gap: .3rem !important; }
 .st-key-inputbar .stTextArea, .st-key-inputbar .stTextArea > div, .st-key-inputbar .stTextArea > div > div,
 .st-key-inputbar [data-baseweb="textarea"], .st-key-inputbar [data-baseweb="base-input"] {
     background: transparent !important; border: none !important; box-shadow: none !important; }
-.st-key-inputbar .stTextArea [data-baseweb="textarea"], .st-key-inputbar .stTextArea [data-baseweb="base-input"],
-.st-key-inputbar .stTextArea textarea { height: 52px !important; min-height: 52px !important; }
+.st-key-inputbar .stTextArea [data-baseweb="textarea"], .st-key-inputbar .stTextArea [data-baseweb="base-input"] {
+    height: auto !important; min-height: 44px !important; }
 .st-key-inputbar .stTextArea textarea { background: transparent !important; border: none !important; box-shadow: none !important;
-    resize: none !important; font-size: 1.05rem !important; color: #fff !important; padding: 4px 4px !important; }
+    resize: none !important; font-size: 1.05rem !important; line-height: 1.5 !important; color: #fff !important;
+    padding: 9px 4px !important; height: 44px; min-height: 44px !important; max-height: 200px !important; overflow-y: auto; }
 .st-key-inputbar .stTextArea textarea::placeholder { color: #8a8a8a !important; }
 .st-key-inputbar [data-testid="InputInstructions"], .st-key-inputbar [data-testid="stTextAreaInstructions"] { display: none !important; }
-.st-key-inputbar [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: .3rem !important; align-items: center !important; }
+.st-key-inputbar [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: .3rem !important; align-items: flex-end !important; }
 .st-key-inputbar [data-testid="stColumn"] { min-width: 0 !important; }
 .st-key-inputbar [data-testid="stElementContainer"] { margin: 0 !important; }
 .st-key-inputbar [data-testid="stMarkdownContainer"] p { margin: 0 !important; }
@@ -108,20 +116,19 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
 /* + button, mic, send: flat icon buttons */
 .st-key-inputbar [data-testid="stPopover"] button, .st-key-send_btn button {
     background: transparent !important; border: none !important; color: #e6e6e6 !important;
-    padding: 0 .5rem !important; min-height: 2.1rem !important; border-radius: 10px !important; }
+    padding: 0 .5rem !important; min-height: 2.4rem !important; border-radius: 10px !important; }
 .st-key-inputbar [data-testid="stPopover"] button:hover, .st-key-send_btn button:hover { background: #3a3a3a !important; }
 .st-key-plus_wrap [data-testid="stPopover"] button { font-size: 1.7rem !important; font-weight: 300 !important; }
 .st-key-plus_wrap [data-testid="stPopover"] button svg,
 .st-key-plus_wrap [data-testid="stPopover"] button [data-testid="stIconMaterial"] { display: none !important; }
 .st-key-send_btn button { font-size: 1.3rem !important; }
 
-/* Chat | Cowork toggle + model label */
-.seg { display: inline-flex; background: #232323; border: 1px solid #3a3a3a; border-radius: 10px; padding: 2px; }
-.seg span { padding: 4px 13px; border-radius: 8px; color: #a8a8a8; font-size: .95rem; }
-.seg .on { background: #3d3d3d; color: #fff; }
-.model-label { text-align: right; white-space: nowrap; color: #fff; font-size: .95rem; }
-.model-label span { color: #9a9a9a; margin-left: .3rem; }
-@media (max-width: 640px) { .model-label { display: none; } }
+/* footer under the pill: disclaimer left, model right */
+.input-foot { display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+    padding: .55rem .9rem 0; color: #8a8a8a; font-size: .85rem; }
+.input-foot .mdl { color: #ffffff; white-space: nowrap; }
+.input-foot .mdl b { color: #9a9a9a; font-weight: 400; margin-left: .3rem; }
+@media (max-width: 640px) { .input-foot .dis { display: none; } .input-foot { justify-content: flex-end; } }
 
 /* ---------- + menu (left aligned, compact, like Claude) ---------- */
 [data-testid="stPopoverBody"] { background: #2b2b2b !important; border: 1px solid #3d3d3d !important; border-radius: 16px !important;
@@ -157,11 +164,10 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
 [data-testid="stMain"]::-webkit-scrollbar-thumb:hover { background: #9a9a9a !important; }
 
 /* ---------- Top bar (chat title left, Share right) ---------- */
+/* --sbw = sidebar width, measured live by JavaScript so the title is never hidden behind the sidebar */
 .block-container, [data-testid="stMainBlockContainer"] { padding-top: 4.5rem !important; }
-.topbar { position: fixed; top: 0; left: 0; right: 0; height: 3.5rem; display: flex; align-items: center;
+.topbar { position: fixed; top: 0; left: var(--sbw, 21rem); right: 0; height: 3.5rem; display: flex; align-items: center;
     justify-content: space-between; padding: 0 1.4rem; background: #191919; border-bottom: 1px solid #262626; z-index: 99; }
-.stApp:has([data-testid="stSidebar"][aria-expanded="true"]) .topbar { left: 21rem; }
-.stApp:has([data-testid="stSidebar"][aria-expanded="false"]) .topbar { left: 3.5rem; }
 .tb-title { display: flex; align-items: center; gap: .55rem; color: #f2f2f2; font-size: 1.05rem; max-width: 60%;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tb-right { display: flex; align-items: center; gap: 1.1rem; color: #e8e8e8; font-size: 1.05rem; }
@@ -172,7 +178,7 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
 [data-testid="stSidebar"] [data-testid="stSidebarHeader"] { display: none; }
 [data-testid="stSidebar"] .stButton button { display: flex !important; align-items: center !important; gap: .8rem; width: 100%; font-size: 1.05rem !important; }
 .st-key-nav_code button::after { content: "Upgrade"; margin-left: auto; color: #5aa9ff; background: #1b2430; border: 1px solid #2c3a4d;
-    border-radius: 999px; padding: 1px 12px; font-size: .85rem; }
+    border-radius: 999px; padding: 1px 10px; font-size: .8rem; white-space: nowrap; flex: 0 0 auto; }
 .side-head { display: flex; align-items: center; justify-content: space-between; color: #f2f2f2; font-weight: 600;
     font-size: 1rem; padding: 1.4rem .7rem .4rem; }
 .side-head svg { stroke: #e8e8e8; fill: none; stroke-width: 1.8; stroke-linecap: round; }
@@ -249,6 +255,7 @@ screen_capture = components.declare_component("chandlio_screen_capture", path=st
 # ---------------- SESSION STATE ----------------
 defaults = {
     "chat_sessions": {"New Chat": []},
+    "chat_titles": {},            # short generated titles, keyed by chat name
     "current_chat": "New Chat",
     "show_workspace": False,
     "workspace_content": "# Workspace\n\nGenerated artifacts will appear here.",
@@ -267,6 +274,7 @@ defaults = {
     "show_projects": False,
     "show_search": False,
     "show_all_chats": False,
+    "scroll_bottom": False,       # when True, the page scrolls to the newest message
 }
 for k, v in defaults.items():
     if k not in st.session_state:
@@ -279,6 +287,17 @@ st.markdown(
     f"padding-left: 1.2rem !important; padding-right: 1.2rem !important; }}</style>",
     unsafe_allow_html=True,
 )
+
+# Once a chat has messages, dock the input bar at the very bottom of the screen (like Claude)
+_has_msgs = bool(st.session_state["chat_sessions"][st.session_state["current_chat"]]) \
+    or st.session_state["pending_prompt"] is not None
+if _has_msgs:
+    st.markdown("""
+<style>
+[data-testid="stMainBlockContainer"] { padding-bottom: .4rem !important; }
+[data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] { min-height: calc(100vh - 5rem); }
+.st-key-inputbar { margin: auto auto 0 auto !important; }
+</style>""", unsafe_allow_html=True)
 
 TEXT_EXT = (".txt", ".md", ".py", ".csv", ".json", ".js", ".html", ".css", ".xml",
             ".yaml", ".yml", ".log", ".sql", ".ini", ".toml")
@@ -344,11 +363,32 @@ def fetch_wiki_image(title):
 
 
 def chat_title(name):
+    """Short generated title if we have one, otherwise a trimmed first message."""
+    titles = st.session_state.get("chat_titles", {})
+    if titles.get(name):
+        return titles[name]
     for m in st.session_state["chat_sessions"].get(name, []):
         if m["role"] == "user":
             t = m["content"].strip().replace("\n", " ")
             return (t[:34] + "…") if len(t) > 34 else t
     return "New chat"
+
+def make_title(user_text, answer):
+    """Ask a small model for a 2-5 word title (like Claude does). Returns None on failure."""
+    from langchain_groq import ChatGroq
+    system = ("Write a very short title (2 to 5 words) that summarises this conversation. "
+              "Reply with ONLY the title: no quotes, no full stop, no emojis.")
+    convo = f"User: {user_text[:500]}\n\nAssistant: {answer[:500]}"
+    for model, tokens in (("llama-3.1-8b-instant", 24), ("openai/gpt-oss-120b", 400)):
+        try:
+            r = ChatGroq(model=model, temperature=0.2, max_tokens=tokens).invoke(
+                [("system", system), ("user", convo)])
+            title = (r.content or "").strip().splitlines()[0].strip().strip("\"'“”‘’*#").rstrip(".").strip()
+            if title:
+                return title[:40]
+        except Exception:
+            continue
+    return None
 
 def toggle_state(key):
     st.session_state[key] = not st.session_state[key]
@@ -510,6 +550,7 @@ with st.sidebar:
         if st.button(chat_title(chat_name), use_container_width=True, key=f"btn_{chat_name}",
                      type="primary" if is_active else "secondary"):
             st.session_state["current_chat"] = chat_name
+            st.session_state["scroll_bottom"] = True
             st.rerun()
     if len(names) > 8 and not search_q:
         st.button("Show less" if st.session_state["show_all_chats"] else "View all", key="view_all",
@@ -524,10 +565,12 @@ with st.sidebar:
             st.session_state["stored_groq_key"] = user_groq_key
             os.environ["GROQ_API_KEY"] = user_groq_key
 
-# ---------------- KEYBOARD SHORTCUTS (JavaScript) ----------------
+# ---------------- JAVASCRIPT (shortcuts, top-bar offset, auto-grow, auto-scroll) ----------------
 KEYS_AND_SCROLL_JS = """
 (function () {
   var P = window.parent, doc = P.document;
+
+  /* Enter = send, Shift+Enter = new line, Ctrl+U = upload */
   if (P.__chandlioKeys) { doc.removeEventListener("keydown", P.__chandlioKeys, true); }
   P.__chandlioKeys = function (e) {
     var t = e.target;
@@ -547,8 +590,55 @@ KEYS_AND_SCROLL_JS = """
     }
   };
   doc.addEventListener("keydown", P.__chandlioKeys, true);
+
+  /* Keep the top bar starting exactly where the sidebar ends (so the chat title is never hidden) */
+  function setSbw() {
+    var sb = doc.querySelector('[data-testid="stSidebar"]');
+    var w = 0;
+    if (sb) { w = Math.round(sb.getBoundingClientRect().right); }
+    if (w < 8) { w = 56; }                       /* sidebar collapsed: leave room for the expand button */
+    doc.documentElement.style.setProperty("--sbw", w + "px");
+  }
+  setSbw();
+  if (P.__chandlioSbw) { P.clearInterval(P.__chandlioSbw); }
+  P.__chandlioSbw = P.setInterval(setSbw, 300);
+
+  /* Message box grows with the text (up to ~8 lines), shrinks back after sending */
+  function grow(t) {
+    t.style.setProperty("height", "44px", "important");
+    var h = Math.min(Math.max(t.scrollHeight, 44), 200);
+    t.style.setProperty("height", h + "px", "important");
+  }
+  function growAll() {
+    var t = doc.querySelector(".st-key-inputbar textarea");
+    if (t) { grow(t); }
+  }
+  if (P.__chandlioGrow) { doc.removeEventListener("input", P.__chandlioGrow, true); }
+  P.__chandlioGrow = function (e) {
+    if (e.target && e.target.tagName === "TEXTAREA" && e.target.closest(".st-key-inputbar")) { grow(e.target); }
+  };
+  doc.addEventListener("input", P.__chandlioGrow, true);
+  [100, 400, 900].forEach(function (d) { P.setTimeout(growAll, d); });
+
   var oldBox = doc.getElementById("chandlio-scroll");
   if (oldBox) oldBox.remove();
+})();
+"""
+
+# Scrolls the chat to the newest message, smoothly, like Claude
+SCROLL_JS = """
+(function () {
+  var P = window.parent, doc = P.document;
+  function go() {
+    [doc.querySelector('[data-testid="stMain"]'),
+     doc.querySelector('section.main'),
+     doc.querySelector('[data-testid="stAppViewContainer"]')].forEach(function (el) {
+      if (el && el.scrollHeight > el.clientHeight) {
+        el.scrollTo({top: el.scrollHeight, behavior: "smooth"});
+      }
+    });
+  }
+  [0, 250, 700].forEach(function (d) { P.setTimeout(go, d); });
 })();
 """
 
@@ -567,117 +657,119 @@ def render_input_bar():
     st.button("hidden upload", key="hidden_upload", on_click=set_panel, args=("upload",))
     run_js(KEYS_AND_SCROLL_JS)
 
+    has_msgs = bool(st.session_state["chat_sessions"][st.session_state["current_chat"]])
+
     with st.container(key="inputbar"):
-        panel = st.session_state["panel"]
+        with st.container(key="pill"):
+            panel = st.session_state["panel"]
 
-        if panel == "screenshot":
-            st.markdown("**📸 Take a screenshot**")
-            res = screen_capture(trigger=st.session_state["shot_trigger"], key="screen_capture", default=None)
-            if isinstance(res, dict) and res.get("data") and res.get("id") != st.session_state["last_shot_id"]:
-                st.session_state["last_shot_id"] = res["id"]
-                try:
-                    raw = base64.b64decode(res["data"].split(",", 1)[1])
-                    add_attachment(f"screenshot_{hashlib.md5(raw).hexdigest()[:6]}.jpg", "image/jpeg", raw)
-                    st.session_state["toast"] = "Screenshot added."
-                except Exception as e:
-                    st.session_state["toast"] = f"Screenshot failed: {e}"
-                st.session_state["panel"] = None
-                st.rerun()
-            st.button("✕ Close", key="close_shot", on_click=close_panel)
+            if panel == "screenshot":
+                st.markdown("**📸 Take a screenshot**")
+                res = screen_capture(trigger=st.session_state["shot_trigger"], key="screen_capture", default=None)
+                if isinstance(res, dict) and res.get("data") and res.get("id") != st.session_state["last_shot_id"]:
+                    st.session_state["last_shot_id"] = res["id"]
+                    try:
+                        raw = base64.b64decode(res["data"].split(",", 1)[1])
+                        add_attachment(f"screenshot_{hashlib.md5(raw).hexdigest()[:6]}.jpg", "image/jpeg", raw)
+                        st.session_state["toast"] = "Screenshot added."
+                    except Exception as e:
+                        st.session_state["toast"] = f"Screenshot failed: {e}"
+                    st.session_state["panel"] = None
+                    st.rerun()
+                st.button("✕ Close", key="close_shot", on_click=close_panel)
 
-        elif panel == "upload":
-            st.markdown("**📎 Upload or add files**")
-            files = st.file_uploader("Add files", accept_multiple_files=True,
-                                     key=f"uploader_{st.session_state['upload_nonce']}")
-            for f in files or []:
-                add_attachment(f.name, f.type, f.getvalue())
-            st.button("✕ Close", key="close_upload", on_click=close_panel)
+            elif panel == "upload":
+                st.markdown("**📎 Upload or add files**")
+                files = st.file_uploader("Add files", accept_multiple_files=True,
+                                         key=f"uploader_{st.session_state['upload_nonce']}")
+                for f in files or []:
+                    add_attachment(f.name, f.type, f.getvalue())
+                st.button("✕ Close", key="close_upload", on_click=close_panel)
 
-        elif panel == "newproject":
-            st.markdown("**📁 New project**")
-            st.text_input("Project name", key="new_project_name", placeholder="e.g. Trading Bot")
-            st.text_area("Description (optional)", key="new_project_desc", height=80,
-                         placeholder="What is this project about?")
-            c1, c2 = st.columns(2)
-            with c1:
-                st.button("Create project", on_click=create_project, key="do_create_project")
-            with c2:
-                st.button("✕ Close", key="close_newproject", on_click=close_panel)
+            elif panel == "newproject":
+                st.markdown("**📁 New project**")
+                st.text_input("Project name", key="new_project_name", placeholder="e.g. Trading Bot")
+                st.text_area("Description (optional)", key="new_project_desc", height=80,
+                             placeholder="What is this project about?")
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.button("Create project", on_click=create_project, key="do_create_project")
+                with c2:
+                    st.button("✕ Close", key="close_newproject", on_click=close_panel)
 
-        for i, a in enumerate(st.session_state["attachments"]):
-            st.button(f"📎 {a['name']}  ✕", key=f"rm_{i}", on_click=remove_attachment, args=(i,))
+            for i, a in enumerate(st.session_state["attachments"]):
+                st.button(f"📎 {a['name']}  ✕", key=f"rm_{i}", on_click=remove_attachment, args=(i,))
 
-        st.text_area("Message", key="msg_box", placeholder="How can I help you today?",
-                     height=68, label_visibility="collapsed")
+            # One compact row, like Claude:  +  |  message  |  mic  |  send
+            c_plus, c_text, c_mic, c_send = st.columns([0.7, 8.6, 0.8, 0.8], vertical_alignment="bottom")
 
-        # Bottom row: + | Chat/Cowork | ... | model | mic | send
-        c_plus, c_chat, c_space, c_model, c_mic, c_send = st.columns(
-            [0.8, 2.6, 3.4, 2.6, 1.0, 0.9], vertical_alignment="center")
+            with c_plus:
+                with st.container(key="plus_wrap"):
+                    with st.popover("＋"):
+                        view = st.session_state["menu_view"]
+                        if view == "main":
+                            st.button("Upload or add files", icon=":material/attach_file:", key="menu_upload",
+                                      use_container_width=True, on_click=set_panel, args=("upload",))
+                            st.button("Take a screenshot", icon=":material/photo_camera:", key="menu_shot",
+                                      use_container_width=True, on_click=start_screenshot)
+                            st.button("Add to project", icon=":material/inventory_2:", key="menu_project",
+                                      use_container_width=True, on_click=set_menu_view, args=("project",))
+                            st.divider()
+                            st.button("Skills", icon=":material/receipt_long:", key="menu_skills",
+                                      use_container_width=True, on_click=set_menu_view, args=("skills",))
+                            st.button("Add connector", icon=":material/extension:", key="menu_connector",
+                                      use_container_width=True, on_click=set_menu_view, args=("connector",))
+                            st.button("Design system", icon=":material/palette:", key="menu_design",
+                                      use_container_width=True, on_click=set_menu_view, args=("design",))
+                            st.button("Add plugins", icon=":material/power:", key="menu_plugins",
+                                      use_container_width=True, on_click=show_plugins_note)
+                            st.divider()
+                            st.button("Web search", icon=":material/language:",
+                                      key="menu_web_on" if st.session_state["web_search"] else "menu_web_off",
+                                      use_container_width=True, on_click=toggle_web_search)
+                        elif view == "project":
+                            st.button("Back", icon=":material/arrow_back:", key="menu_back",
+                                      use_container_width=True, on_click=set_menu_view, args=("main",))
+                            for i, pname in enumerate(st.session_state["projects"].keys()):
+                                st.button(pname, icon=":material/folder:", key=f"menu_p_{i}",
+                                          use_container_width=True, on_click=add_to_project, args=(pname,))
+                            st.button("New project", icon=":material/add:", key="menu_newproject",
+                                      use_container_width=True, on_click=set_panel, args=("newproject",))
+                        else:
+                            st.button("Back", icon=":material/arrow_back:", key="menu_back",
+                                      use_container_width=True, on_click=set_menu_view, args=("main",))
+                            notes = {
+                                "skills": "No skills added yet.",
+                                "connector": "No connectors available yet.",
+                                "design": "No design systems yet.",
+                            }
+                            st.caption(notes.get(view, ""))
 
-        with c_plus:
-            with st.container(key="plus_wrap"):
-                with st.popover("＋"):
-                    view = st.session_state["menu_view"]
-                    if view == "main":
-                        st.button("Upload or add files", icon=":material/attach_file:", key="menu_upload",
-                                  use_container_width=True, on_click=set_panel, args=("upload",))
-                        st.button("Take a screenshot", icon=":material/photo_camera:", key="menu_shot",
-                                  use_container_width=True, on_click=start_screenshot)
-                        st.button("Add to project", icon=":material/inventory_2:", key="menu_project",
-                                  use_container_width=True, on_click=set_menu_view, args=("project",))
-                        st.divider()
-                        st.button("Skills", icon=":material/receipt_long:", key="menu_skills",
-                                  use_container_width=True, on_click=set_menu_view, args=("skills",))
-                        st.button("Add connector", icon=":material/extension:", key="menu_connector",
-                                  use_container_width=True, on_click=set_menu_view, args=("connector",))
-                        st.button("Design system", icon=":material/palette:", key="menu_design",
-                                  use_container_width=True, on_click=set_menu_view, args=("design",))
-                        st.button("Add plugins", icon=":material/power:", key="menu_plugins",
-                                  use_container_width=True, on_click=show_plugins_note)
-                        st.divider()
-                        st.button("Web search", icon=":material/language:",
-                                  key="menu_web_on" if st.session_state["web_search"] else "menu_web_off",
-                                  use_container_width=True, on_click=toggle_web_search)
-                    elif view == "project":
-                        st.button("Back", icon=":material/arrow_back:", key="menu_back",
-                                  use_container_width=True, on_click=set_menu_view, args=("main",))
-                        for i, pname in enumerate(st.session_state["projects"].keys()):
-                            st.button(pname, icon=":material/folder:", key=f"menu_p_{i}",
-                                      use_container_width=True, on_click=add_to_project, args=(pname,))
-                        st.button("New project", icon=":material/add:", key="menu_newproject",
-                                  use_container_width=True, on_click=set_panel, args=("newproject",))
-                    else:
-                        st.button("Back", icon=":material/arrow_back:", key="menu_back",
-                                  use_container_width=True, on_click=set_menu_view, args=("main",))
-                        notes = {
-                            "skills": "No skills added yet.",
-                            "connector": "No connectors available yet.",
-                            "design": "No design systems yet.",
-                        }
-                        st.caption(notes.get(view, ""))
+            with c_text:
+                st.text_area("Message", key="msg_box", placeholder="How can I help you today?",
+                             height=68, label_visibility="collapsed")
 
-        with c_chat:
-            st.markdown("<div class='seg'><span class='on'>Chat</span><span>Cowork</span></div>",
-                        unsafe_allow_html=True)
+            with c_mic:
+                with st.container(key="mic_wrap"):
+                    try:
+                        mic_pop = st.popover(" ", icon=":material/mic:")
+                    except Exception:
+                        mic_pop = st.popover("🎤")
+                    with mic_pop:
+                        if hasattr(st, "audio_input"):
+                            st.audio_input("Record a voice message", key="mic_audio", on_change=transcribe_audio)
+                        else:
+                            st.caption("Update Streamlit to use voice input.")
 
-        with c_model:
-            st.markdown(f"<div class='model-label'>{MODEL_LABEL}<span>{MODEL_NOTE}</span></div>",
-                        unsafe_allow_html=True)
+            with c_send:
+                st.button(" ", icon=":material/keyboard_return:", key="send_btn", on_click=send_message)
 
-        with c_mic:
-            with st.container(key="mic_wrap"):
-                try:
-                    mic_pop = st.popover(" ", icon=":material/mic:")
-                except Exception:
-                    mic_pop = st.popover("🎤")
-                with mic_pop:
-                    if hasattr(st, "audio_input"):
-                        st.audio_input("Record a voice message", key="mic_audio", on_change=transcribe_audio)
-                    else:
-                        st.caption("Update Streamlit to use voice input.")
-
-        with c_send:
-            st.button(" ", icon=":material/keyboard_return:", key="send_btn", on_click=send_message)
+        if has_msgs or st.session_state["pending_prompt"] is not None:
+            st.markdown(
+                f"<div class='input-foot'><span class='dis'>Chandlio is AI and can make mistakes. "
+                f"Please double-check responses.</span>"
+                f"<span class='mdl'>{MODEL_LABEL}<b>{MODEL_NOTE}</b></span></div>",
+                unsafe_allow_html=True)
 
 def render_starter_chips():
     chips = [("Write", ":material/edit:", "Help me write "),
@@ -747,6 +839,7 @@ try:
         pending = st.session_state["pending_prompt"]
         if pending is not None:
             st.session_state["pending_prompt"] = None
+            st.session_state["scroll_bottom"] = True
             files = list(st.session_state["attachments"])
             st.session_state["attachments"] = []
             st.session_state["panel"] = None
@@ -762,6 +855,9 @@ try:
                         st.image(f["data"], width=300)
                     else:
                         st.caption(f"📎 {f['name']}")
+
+            # jump down right away so you see your message + "Thinking..." (like Claude)
+            run_js(SCROLL_JS)
 
             with st.chat_message("assistant"):
                 with st.spinner("Thinking..."):
@@ -790,6 +886,14 @@ try:
             if "```" in answer:
                 st.session_state["workspace_content"] = answer
 
+            # Generate a short Claude-style title once per chat, then refresh sidebar + top bar
+            chat_key = st.session_state["current_chat"]
+            if not st.session_state["chat_titles"].get(chat_key):
+                new_title = make_title(prompt, answer)
+                if new_title:
+                    st.session_state["chat_titles"][chat_key] = new_title
+                    st.rerun()
+
     if st.session_state["show_workspace"]:
         with workspace_pane:
             col_title, col_close = st.columns([4, 1])
@@ -804,10 +908,15 @@ try:
 except Exception as e:
     st.error(f"Error: {e}")
 
-# Input bar (sticky) + starter chips on an empty chat
+# Input bar (docked at the bottom) + starter chips on an empty chat
 try:
     render_input_bar()
     if not st.session_state["chat_sessions"][st.session_state["current_chat"]] and st.session_state["panel"] is None:
         render_starter_chips()
 except Exception as e:
     st.error(f"Input bar failed to load: {e}")
+
+# Scroll to the newest message (after a send, or when switching chats)
+if st.session_state.get("scroll_bottom"):
+    st.session_state["scroll_bottom"] = False
+    run_js(SCROLL_JS)
