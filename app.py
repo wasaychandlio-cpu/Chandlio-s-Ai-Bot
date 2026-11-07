@@ -1008,11 +1008,36 @@ def connector_logo(name, skill=False):
 @st.dialog("Connect an app", width="large", dismissible=True, on_dismiss=dismiss_connector_dialog)
 def connector_connect_dialog(name):
     st.markdown("""<style>
+    /* Center the native OUTER panel as well as its inner role=dialog.
+       Newer Streamlit versions put the panel outside role=dialog. */
+    [data-testid="stDialog"]:has(.st-key-cu_connect_modal) {
+        position:fixed !important;inset:0 !important;display:flex !important;
+        align-items:center !important;justify-content:center !important;
+        padding:16px !important;box-sizing:border-box !important;
+        overflow:hidden !important;background:rgba(0,0,0,.56) !important;
+    }
+    [data-testid="stDialog"]:has(.st-key-cu_connect_modal) > :has(.st-key-cu_connect_modal) {
+        position:relative !important;flex:0 1 620px !important;
+        width:min(620px,calc(100vw - 32px)) !important;
+        min-width:0 !important;max-width:620px !important;
+        height:auto !important;min-height:0 !important;
+        max-height:calc(100dvh - 32px) !important;
+        margin:0 auto !important;padding:0 !important;
+        background:transparent !important;border:0 !important;
+        border-radius:28px !important;box-shadow:0 18px 60px rgba(0,0,0,.45) !important;
+        overflow:hidden !important;
+    }
     [data-testid="stDialog"] [role="dialog"]:has(.st-key-cu_connect_modal) {
-        position:relative !important;width:min(620px,calc(100vw - 32px)) !important;
-        max-width:620px !important;max-height:88vh !important;height:auto !important;
+        position:relative !important;flex:0 1 auto !important;
+        width:100% !important;min-width:0 !important;max-width:620px !important;
+        height:auto !important;min-height:0 !important;max-height:calc(100dvh - 32px) !important;
+        margin:0 !important;box-sizing:border-box !important;
         padding:24px !important;background:#202020 !important;border:1px solid #353535 !important;
-        border-radius:28px !important;overflow-y:auto !important;
+        border-radius:28px !important;box-shadow:none !important;overflow-y:auto !important;
+    }
+    [data-testid="stDialog"] [data-testid="stDialogContent"]:has(.st-key-cu_connect_modal) {
+        padding:0 !important;height:auto !important;min-height:0 !important;
+        max-height:none !important;background:transparent !important;
     }
     [data-testid="stDialog"]:has(.st-key-cu_connect_modal) button[aria-label="Close"] {
         top:12px !important;right:12px !important;transform:none !important;
