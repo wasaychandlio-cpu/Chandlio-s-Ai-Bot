@@ -14,6 +14,7 @@ st.set_page_config(page_title="Chandlio's AI Bot", page_icon="⚡", layout="wide
 GREETING = "Let’s have a think"      # <- change the home-screen heading here
 MODEL_LABEL, MODEL_NOTE = "gpt-oss-120b", "Fast"
 ACCOUNT_EMAIL = "mabdulwasay81@gmail.com"   # <- shown at the top of the account menu
+AI_NAME = "Chandlio"                 # <- the AI name used in every label (replaces "Claude")
 
 # ---------------- LOGO ----------------
 # Put your logo image (png / jpg / jpeg / webp) in the same folder as app.py.
@@ -241,7 +242,6 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
 /* ---------- Sidebar nav like Claude ---------- */
 [data-testid="stSidebar"] [data-testid="stSidebarHeader"] { display: none; }
 [data-testid="stSidebar"] .stButton button { display: flex !important; align-items: center !important; gap: .8rem; width: 100%; font-size: 1.05rem !important; }
-.st-key-nav_new button { background: #2f2f2e !important; }
 .st-key-nav_code button::after { content: "Upgrade"; margin-left: auto; color: #5aa9ff; background: #1b2430; border: 1px solid #2c3a4d;
     border-radius: 999px; padding: 1px 10px; font-size: .8rem; white-space: nowrap; flex: 0 0 auto; }
 .side-head { display: flex; align-items: center; justify-content: space-between; color: #f2f2f2; font-weight: 600;
@@ -288,25 +288,123 @@ html[data-sbcollapsed] .st-key-account_wrap { display: none !important; }
 .st-key-srch_tabs [data-testid^="stBaseButton-segmented"][aria-pressed="true"],
 .st-key-srch_tabs [data-testid^="stBaseButton-segmented"][aria-checked="true"] { background: #4a4a4a !important; color: #fff !important; }
 
-.st-key-srch_body { min-height: 440px; padding: 22px 12px 12px 12px; }
+.st-key-srch_body { padding: 22px 12px 12px 12px; }
 .srch-label { color: #9a9a9a; font-size: 1rem; padding: 0 22px 10px; }
-.srch-empty { text-align: center; color: #9a9a9a; font-size: 1.5rem; padding-top: 8.5rem; padding-bottom: 1.1rem; }
-.st-key-srch_all { display: flex; justify-content: center; }
+.srch-empty { text-align: center; color: #9a9a9a; font-size: 1.5rem; padding-top: 2.4rem; padding-bottom: 1.1rem; }
+.st-key-srch_all { display: flex; justify-content: center; padding-bottom: 1rem; }
 .st-key-srch_all button { background: #4a4a4a !important; border: none !important; color: #fff !important;
     border-radius: 10px !important; padding: .3rem 1rem !important; font-size: 1.1rem !important; min-height: 0 !important; }
 
 [class*="st-key-srch_row_"] button, .st-key-srch_newchat button { display: flex !important; justify-content: flex-start !important;
     text-align: left !important; gap: .8rem; width: 100%; background: transparent !important; border: none !important;
     color: #fff !important; padding: .7rem 1rem !important; border-radius: 12px !important; font-size: 1.15rem !important; min-height: 0 !important; }
-[class*="st-key-srch_row_"] button:hover { background: #3a3a3a !important; }
-.st-key-srch_newchat button { background: #4f4f4f !important; }
-.st-key-srch_newchat button::after { content: "↵"; margin-left: auto; color: #cfcfcf; font-size: 1.4rem; line-height: 1; }
+[class*="st-key-srch_row_"] button:hover, .st-key-srch_newchat button:hover { background: #3a3a3a !important; }
 
 .srch-foot { display: flex; justify-content: space-between; align-items: center; padding: 14px 26px;
     border-top: 1px solid #3d3d3d; color: #a8a8a8; font-size: 1rem; }
 .srch-foot .grp { display: flex; align-items: center; gap: 2rem; }
 .srch-foot .it { display: inline-flex; align-items: center; gap: .55rem; }
 .srch-foot kbd { border: 1px solid #5a5a5a; border-radius: 6px; padding: 0 .4rem; font-family: inherit; font-size: .9rem; color: #a8a8a8; }
+
+/* =====================================================================
+   NEW (from the video): sidebar details, pages, create-project dialog
+   ===================================================================== */
+
+/* sidebar: "New" shows its shortcut on hover, "Projects" shows a + on hover */
+.st-key-nav_new button:hover::after { content: "Ctrl+Shift+O"; margin-left: auto; color: #9a9a9a; font-size: .8rem; white-space: nowrap; }
+.st-key-proj_row { position: relative; }
+.st-key-proj_plus { position: absolute !important; right: 6px; top: 50%; transform: translateY(-50%);
+    width: auto !important; opacity: 0; z-index: 3; }
+.st-key-proj_row:hover .st-key-proj_plus { opacity: 1; }
+.st-key-proj_plus .stButton, .st-key-proj_plus [data-testid="stElementContainer"] { width: auto !important; }
+.st-key-proj_plus button { width: auto !important; padding: .1rem .4rem !important; font-size: 1.2rem !important; }
+
+/* home screen "Free plan · Upgrade" pill */
+.st-key-plan_wrap { align-items: center; }
+.st-key-plan_wrap button { background: #222 !important; border: 1px solid #2f2f2f !important; color: #a8a8a8 !important;
+    border-radius: 12px !important; min-height: 0 !important; padding: .25rem .95rem !important; font-size: .9rem !important; }
+.st-key-plan_wrap button:hover { background: #2a2a2a !important; }
+
+/* page headers (Projects / Artifacts) */
+.pg-title { font-family: var(--serif); font-size: 2rem; font-weight: 400; color: #f5f4ef; line-height: 1.2; }
+.st-key-pj_head [data-testid="stHorizontalBlock"], .st-key-art_bar [data-testid="stHorizontalBlock"] {
+    align-items: center !important; flex-wrap: nowrap !important; gap: .3rem !important; }
+.st-key-pj_head [data-testid="stColumn"], .st-key-art_bar [data-testid="stColumn"] { min-width: 0 !important; }
+.st-key-pj_search_btn button, .st-key-pj_sort_btn button, [class*="st-key-ab_"] button {
+    background: transparent !important; border: none !important; color: #e6e6e6 !important; box-shadow: none !important;
+    min-height: 2.2rem !important; padding: 0 .45rem !important; border-radius: 8px !important; }
+.st-key-pj_search_btn button:hover, .st-key-pj_sort_btn button:hover, [class*="st-key-ab_"] button:hover { background: #2a2a29 !important; }
+.st-key-pj_new button, .st-key-pj_empty button { background: #f5f4ef !important; color: #191919 !important; border: none !important;
+    border-radius: 8px !important; min-height: 2.1rem !important; padding: 0 .9rem !important; font-weight: 500 !important; box-shadow: none !important; }
+.st-key-pj_new button p, .st-key-pj_empty button p { color: #191919 !important; }
+.st-key-pj_new button:hover, .st-key-pj_empty button:hover { background: #ffffff !important; }
+.st-key-pj_new { display: flex; justify-content: flex-end; }
+
+/* empty states */
+.pg-empty { display: flex; flex-direction: column; align-items: center; text-align: center; margin-top: 5rem; }
+.pg-empty svg { stroke: #e8e8e8; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.pg-empty .t1 { color: #b5b5b5; font-size: .95rem; margin-top: 1rem; }
+.pg-empty .t2 { color: #8a8a8a; font-size: .85rem; max-width: 320px; margin-top: .6rem; line-height: 1.5; }
+.st-key-pj_empty { align-items: center; margin-top: .6rem; }
+.pg-note { margin-top: 2.2rem; }
+.pg-note .t1 { color: #b5b5b5; font-size: .95rem; }
+.pg-note .t2 { color: #8a8a8a; font-size: .85rem; max-width: 300px; margin-top: .8rem; line-height: 1.5; }
+
+/* project and artifact cards: HTML card with an invisible button laid over it */
+[class*="st-key-pcard_"], [class*="st-key-acard_"], [class*="st-key-tile_"] { position: relative; gap: 0 !important; }
+[class*="st-key-pcard_"] .stButton, [class*="st-key-acard_"] .stButton, [class*="st-key-tile_"] .stButton {
+    position: absolute !important; inset: 0; width: 100% !important; height: 100% !important; }
+[class*="st-key-pcard_"] .stButton button, [class*="st-key-acard_"] .stButton button, [class*="st-key-tile_"] .stButton button {
+    width: 100% !important; height: 100% !important; opacity: 0; cursor: pointer; }
+.pcard { background: #222; border: 1px solid #2f2f2f; border-radius: 14px; padding: 1rem 1.1rem; min-height: 110px; }
+[class*="st-key-pcard_"]:hover .pcard, [class*="st-key-acard_"]:hover .pcard { background: #2a2a29; border-color: #3a3a39; }
+.pcard .pc-title { font-family: var(--serif); font-size: 1.15rem; color: #f5f4ef; margin-bottom: .35rem; }
+.pcard .pc-desc { color: #a8a8a8; font-size: .9rem; line-height: 1.45; max-height: 3em; overflow: hidden; }
+.pcard .pc-meta { color: #7d7d7d; font-size: .8rem; margin-top: .7rem; }
+.st-key-pj_cards, .st-key-art_cards { margin-top: 1.4rem; }
+
+/* artifacts page */
+.art-label { color: #a8a8a8; font-size: .85rem; margin: 1.3rem 0 .6rem; }
+.tile { width: 112px; height: 72px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden; }
+.tile svg { stroke-width: 1.8; fill: none; stroke-linecap: round; stroke-linejoin: round; position: relative; z-index: 2; }
+.tile::before { content: ""; position: absolute; inset: 0; opacity: .22;
+    background: repeating-linear-gradient(115deg, transparent 0 9px, rgba(255,255,255,.55) 9px 10px); }
+.t-docs { background: linear-gradient(135deg, #1d429a, #162f78); } .t-docs svg { stroke: #a9c8ff; }
+.t-slides { background: linear-gradient(135deg, #8f3813, #6b270c); } .t-slides svg { stroke: #ffb994; }
+.t-design { background: linear-gradient(135deg, #5326b3, #3b1a89); } .t-design svg { stroke: #d6c2ff; }
+.tile-label { color: #d0d0d0; font-size: .8rem; margin-top: .4rem; }
+[class*="st-key-tile_"] { width: 112px; }
+.st-key-art_tabs [data-testid="stButtonGroup"], .st-key-art_tabs [role="radiogroup"] {
+    background: transparent !important; border: none !important; gap: 4px !important; flex-wrap: nowrap !important; padding: 0 !important; }
+.st-key-art_tabs [data-testid^="stBaseButton-segmented"], .st-key-art_tabs [role="radiogroup"] label {
+    background: transparent !important; border: none !important; outline: none !important; box-shadow: none !important;
+    color: #e8e8e8 !important; border-radius: 8px !important; min-height: 2rem !important; padding: 0 .8rem !important; }
+.st-key-art_tabs [data-testid^="stBaseButton-segmented"] p { color: inherit !important; }
+.st-key-art_tabs [data-testid^="stBaseButton-segmented"][data-testid$="Active"],
+.st-key-art_tabs [data-testid^="stBaseButton-segmented"][aria-pressed="true"],
+.st-key-art_tabs [data-testid^="stBaseButton-segmented"][aria-checked="true"] { background: #3a3a3a !important; color: #fff !important; }
+
+/* "Create a project" popup */
+[data-testid="stDialog"] div[role="dialog"]:has(.st-key-np_wrap) { width: 520px !important; padding: 22px 24px 22px 24px !important;
+    background: #2b2b2b !important; border-radius: 16px !important; }
+[data-testid="stDialog"] div[role="dialog"]:has(.st-key-np_wrap) h2 { display: block !important; font-size: 1rem !important;
+    font-weight: 600 !important; color: #fff !important; padding: 0 0 .9rem 0 !important; }
+[data-testid="stDialog"] div[role="dialog"]:has(.st-key-np_wrap) button[aria-label="Close"] { top: 16px !important; right: 18px !important; transform: scale(1); }
+.st-key-np_wrap [data-testid="stElementContainer"] { margin-bottom: .6rem !important; }
+.st-key-np_wrap label, .st-key-np_wrap label p { color: #f2f2f2 !important; font-size: .9rem !important; font-weight: 500 !important; }
+.st-key-np_wrap input, .st-key-np_wrap textarea { background: #242424 !important; color: #fff !important;
+    border: 1px solid #3d3d3d !important; border-radius: 8px !important; }
+.st-key-np_wrap input:focus, .st-key-np_wrap textarea:focus { border-color: #4a9eff !important; }
+.st-key-np_wrap [data-baseweb="input"], .st-key-np_wrap [data-baseweb="textarea"], .st-key-np_wrap [data-baseweb="base-input"] {
+    background: #242424 !important; border-radius: 8px !important; }
+.st-key-np_wrap [data-testid="InputInstructions"] { display: none !important; }
+.st-key-np_wrap [data-testid="stHorizontalBlock"] { gap: .5rem !important; }
+.st-key-np_cancel button, .st-key-np_create button { border: none !important; border-radius: 8px !important; min-height: 2.2rem !important;
+    box-shadow: none !important; font-weight: 500 !important; }
+.st-key-np_cancel button { background: #4a4a4a !important; color: #fff !important; }
+.st-key-np_create button { background: #f5f4ef !important; color: #191919 !important; }
+.st-key-np_create button p { color: #191919 !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -401,22 +499,39 @@ defaults = {
     "show_search": False,
     "show_all_chats": False,
     "scroll_bottom": False,       # when True, the page scrolls to the newest message
+    # ---- pages shown in the video ----
+    "page": "chat",               # "chat" | "projects" | "artifacts"
+    "open_newproj": False,        # opens the "Create a project" popup
+    "proj_search_on": False,
+    "proj_sort": "recent",        # "recent" | "name"
+    "artifact_items": [],         # every code answer, listed on the Artifacts page
+    "art_search_on": False,
+    "art_newest_first": True,
+    "art_list_view": False,
 }
 for k, v in defaults.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
-# Centered Claude-width column (wider only when the artifact workspace is open)
-_col_width = "1200px" if st.session_state["show_workspace"] else "760px"
+_page = st.session_state["page"]
+
+# Centered Claude-width column (wider only when the artifact workspace is open, or on the Projects / Artifacts pages)
+if _page != "chat":
+    _col_width = "1100px"
+else:
+    _col_width = "1200px" if st.session_state["show_workspace"] else "760px"
 st.markdown(
     f"<style>.block-container {{ max-width: {_col_width} !important; margin: 0 auto !important; "
     f"padding-left: 1.2rem !important; padding-right: 1.2rem !important; }}</style>",
     unsafe_allow_html=True,
 )
+if _page != "chat":
+    st.markdown("<style>.block-container, [data-testid=\"stMainBlockContainer\"] { padding-top: 2.6rem !important; }</style>",
+                unsafe_allow_html=True)
 
 # Once a chat has messages, dock the input bar at the very bottom of the screen (like Claude)
-_has_msgs = bool(st.session_state["chat_sessions"][st.session_state["current_chat"]]) \
-    or st.session_state["pending_prompt"] is not None
+_has_msgs = _page == "chat" and (bool(st.session_state["chat_sessions"][st.session_state["current_chat"]])
+                                 or st.session_state["pending_prompt"] is not None)
 if _has_msgs:
     st.markdown("""
 <style>
@@ -497,7 +612,19 @@ def chat_title(name):
         if m["role"] == "user":
             t = m["content"].strip().replace("\n", " ")
             return (t[:34] + "…") if len(t) > 34 else t
+    if name == next(iter(st.session_state["chat_sessions"]), None):
+        return f"Your first chat with {AI_NAME}"
     return "New chat"
+
+def listed_chats():
+    """Chats shown in the sidebar and in Search > Recents (newest first).
+    When nothing has been said yet, the very first chat is listed, like in the video."""
+    s = st.session_state
+    names = [n for n, msgs in s["chat_sessions"].items()
+             if msgs or (n == s["current_chat"] and s["pending_prompt"] is not None)][::-1]
+    if not names:
+        names = [next(iter(s["chat_sessions"]))]
+    return names
 
 def make_title(user_text, answer):
     """Ask a small model for a 2-5 word title (like Claude does). Returns None on failure."""
@@ -643,6 +770,44 @@ def transcribe_audio():
     except Exception as e:
         st.session_state["toast"] = f"Voice input failed: {e}"
 
+# ---- callbacks for the pages from the video ----
+def go_page(name):
+    st.session_state["page"] = name
+
+def go_chat(prefill=None):
+    """Open the chat screen (re-using the current chat if it is still empty)."""
+    s = st.session_state
+    if s["chat_sessions"][s["current_chat"]]:
+        new_title = f"Chat {len(s['chat_sessions']) + 1}"
+        s["chat_sessions"][new_title] = []
+        s["current_chat"] = new_title
+    s["page"] = "chat"
+    s["show_workspace"] = False
+    if prefill:
+        s["msg_box"] = prefill
+
+def open_newproject():
+    st.session_state["open_newproj"] = True
+
+def go_projects_and_new():
+    st.session_state["page"] = "projects"
+    st.session_state["open_newproj"] = True
+
+def toggle_proj_sort():
+    st.session_state["proj_sort"] = "name" if st.session_state["proj_sort"] == "recent" else "recent"
+
+def open_project(name):
+    link_chat_to_project(name)
+    st.session_state["page"] = "chat"
+    st.session_state["toast"] = f"This chat is now linked to project '{name}'."
+
+def open_artifact(idx):
+    items = st.session_state["artifact_items"]
+    if 0 <= idx < len(items):
+        st.session_state["workspace_content"] = items[idx]["content"]
+        st.session_state["show_workspace"] = True
+        st.session_state["page"] = "chat"
+
 # ---------------- SETTINGS DIALOG (Groq key lives here now) ----------------
 @st.dialog("Settings")
 def settings_dialog():
@@ -656,6 +821,33 @@ def settings_dialog():
             st.rerun()
         else:
             st.error("Please paste your Groq API key.")
+
+# ---------------- CREATE A PROJECT DIALOG (from the video) ----------------
+@st.dialog("Create a project")
+def newproject_dialog():
+    with st.container(key="np_wrap"):
+        name = st.text_input("What are you working on?", key="np_name", placeholder="Name your project")
+        desc = st.text_area("What are you trying to achieve?", key="np_desc", height=90,
+                            placeholder="Describe your project, goals, subject, etc...")
+        _gap, b1, b2 = st.columns([5, 1.4, 2.2])
+        with b1:
+            with st.container(key="np_cancel"):
+                cancel = st.button("Cancel", key="np_cancel_btn", use_container_width=True)
+        with b2:
+            with st.container(key="np_create"):
+                create = st.button("Create project", key="np_create_btn", use_container_width=True)
+        if cancel:
+            st.rerun()
+        if create:
+            nm = (name or "").strip()
+            if not nm:
+                st.error("Please enter a project name.")
+            elif nm in st.session_state["projects"]:
+                st.error("A project with that name already exists.")
+            else:
+                st.session_state["projects"][nm] = {"description": (desc or "").strip(), "files": []}
+                st.session_state["toast"] = f"Project '{nm}' created."
+                st.rerun()
 
 # ---------------- SEARCH POPUP ----------------
 SEARCH_TABS = ["All", "Artifacts", "Chats", "Projects", "Sessions", "Tasks", "Scheduled"]
@@ -679,45 +871,68 @@ def search_dialog():
     ql = (q or "").strip().lower()
 
     sessions = st.session_state["chat_sessions"]
-    chat_hits = [n for n in list(sessions.keys())[::-1] if sessions[n] and
+    chat_hits = [n for n in listed_chats() if
                  (not ql or ql in chat_title(n).lower() or any(ql in m["content"].lower() for m in sessions[n]))]
     proj_hits = [p for p in st.session_state["projects"] if not ql or ql in p.lower()]
-    art = st.session_state["workspace_content"]
-    art_hits = ["Latest artifact"] if ("```" in art and (not ql or ql in art.lower())) else []
+    art_hits = [(i, a) for i, a in enumerate(st.session_state["artifact_items"])
+                if not ql or ql in a["title"].lower() or ql in a["content"].lower()][::-1]
+
+    chat_rows = tab in ("All", "Chats") and bool(chat_hits)
+    # first row is highlighted (that is what Enter opens); when there are no chats, "New chat" is highlighted
+    hl_css = ("<style>.st-key-srch_first button { background: #4a4a4a !important; }"
+              ".st-key-srch_first button::after { content: \"\\22EF   \\21B5\"; margin-left: auto; color: #cfcfcf; letter-spacing: .08em; }</style>"
+              if chat_rows else
+              "<style>.st-key-srch_newchat button { background: #4a4a4a !important; }"
+              ".st-key-srch_newchat button::after { content: \"\\21B5\"; margin-left: auto; color: #cfcfcf; font-size: 1.4rem; line-height: 1; }</style>")
+    body_css = "<style>.st-key-srch_body { min-height: 420px; }</style>" if tab == "All" else ""
+    st.markdown(hl_css + body_css, unsafe_allow_html=True)
 
     with st.container(key="srch_body"):
         shown = False
-        if tab == "All" and not ql:
-            st.markdown("<div class='srch-label'>Actions</div>", unsafe_allow_html=True)
-            if st.button("New chat", icon=":material/add_comment:", key="srch_newchat", use_container_width=True):
-                new_title = f"Chat {len(sessions) + 1}"
-                sessions[new_title] = []
-                st.session_state["current_chat"] = new_title
-                st.session_state["show_workspace"] = False
-                st.rerun()
-            shown = True
 
         if tab in ("All", "Chats") and chat_hits:
-            st.markdown("<div class='srch-label' style='padding-top:14px'>Chats</div>", unsafe_allow_html=True)
-            for n in chat_hits[:20]:
-                if _search_row(chat_title(n), ":material/chat_bubble_outline:", f"srch_row_chat_{n}"):
+            if tab == "All":
+                st.markdown(f"<div class='srch-label'>{'Recents' if not ql else 'Chats'}</div>", unsafe_allow_html=True)
+            for idx, n in enumerate(chat_hits[:20]):
+                if idx == 0:
+                    with st.container(key="srch_first"):
+                        clicked = _search_row(chat_title(n), ":material/chat_bubble_outline:", f"srch_row_chat_{n}")
+                else:
+                    clicked = _search_row(chat_title(n), ":material/chat_bubble_outline:", f"srch_row_chat_{n}")
+                if clicked:
                     st.session_state["current_chat"] = n
+                    st.session_state["page"] = "chat"
                     st.session_state["scroll_bottom"] = True
                     st.rerun()
             shown = True
 
         if tab in ("All", "Projects") and proj_hits:
-            st.markdown("<div class='srch-label' style='padding-top:14px'>Projects</div>", unsafe_allow_html=True)
+            if tab == "All":
+                st.markdown("<div class='srch-label' style='padding-top:14px'>Projects</div>", unsafe_allow_html=True)
             for p in proj_hits:
                 if _search_row(p, ":material/folder:", f"srch_row_proj_{p}"):
                     link_chat_to_project(p)
+                    st.session_state["page"] = "projects"
                     st.rerun()
             shown = True
 
         if tab in ("All", "Artifacts") and art_hits:
-            st.markdown("<div class='srch-label' style='padding-top:14px'>Artifacts</div>", unsafe_allow_html=True)
-            if _search_row(art_hits[0], ":material/filter_none:", "srch_row_artifact"):
-                st.session_state["show_workspace"] = True
+            if tab == "All":
+                st.markdown("<div class='srch-label' style='padding-top:14px'>Artifacts</div>", unsafe_allow_html=True)
+            for i, a in art_hits[:10]:
+                if _search_row(a["title"], ":material/filter_none:", f"srch_row_artifact_{i}"):
+                    open_artifact(i)
+                    st.rerun()
+            shown = True
+
+        if tab == "All" and not ql:
+            st.markdown("<div class='srch-label' style='padding-top:14px'>Actions</div>", unsafe_allow_html=True)
+            if st.button("New chat", icon=":material/add_comment:", key="srch_newchat", use_container_width=True):
+                new_title = f"Chat {len(sessions) + 1}"
+                sessions[new_title] = []
+                st.session_state["current_chat"] = new_title
+                st.session_state["page"] = "chat"
+                st.session_state["show_workspace"] = False
                 st.rerun()
             shown = True
 
@@ -727,11 +942,12 @@ def search_dialog():
                 with st.container(key="srch_all"):
                     st.button("Search all", key="srch_all_btn", on_click=_search_all)
 
+    actions_item = "<span class='it'>Actions <kbd>Alt</kbd><kbd>↵</kbd></span>" if chat_rows else ""
     st.markdown(
         "<div class='srch-foot'><div class='grp'>"
         "<span class='it'>Close <kbd>Esc</kbd></span>"
         "<span class='it'>Change type <kbd>←</kbd><kbd>→</kbd></span>"
-        "<span class='it'>Filters <kbd>/</kbd></span></div>"
+        "<span class='it'>Filters <kbd>/</kbd></span>" + actions_item + "</div>"
         "<span class='it'>Compose <kbd>Tab</kbd></span></div>",
         unsafe_allow_html=True)
 
@@ -742,10 +958,14 @@ FILTER_SVG = ('<svg width="18" height="18" viewBox="0 0 24 24"><line x1="4" y1="
 with st.sidebar:
     st.markdown("<div class='brand'>Chandlio</div>", unsafe_allow_html=True)
 
-    if st.button("New", icon=":material/add:", use_container_width=True, key="nav_new"):
+    _cur_empty = not st.session_state["chat_sessions"][st.session_state["current_chat"]] \
+        and st.session_state["pending_prompt"] is None
+    if st.button("New", icon=":material/add:", use_container_width=True, key="nav_new",
+                 type="primary" if (_page == "chat" and _cur_empty) else "secondary"):
         new_title = f"Chat {len(st.session_state['chat_sessions']) + 1}"
         st.session_state["chat_sessions"][new_title] = []
         st.session_state["current_chat"] = new_title
+        st.session_state["page"] = "chat"
         st.session_state["show_workspace"] = False
         st.rerun()
 
@@ -755,20 +975,17 @@ with st.sidebar:
         search_dialog()
     search_q = ""
 
-    st.button("Projects", icon=":material/inventory_2:", use_container_width=True, key="nav_projects",
-              on_click=toggle_state, args=("show_projects",))
-    if st.session_state["show_projects"]:
-        st.button("New project", icon=":material/create_new_folder:", use_container_width=True,
-                  key="side_new_project", on_click=set_panel, args=("newproject",))
-        active_proj = st.session_state["chat_project"].get(st.session_state["current_chat"])
-        for pname, pdata in st.session_state["projects"].items():
-            st.button(f"{pname} ({len(pdata['files'])})", use_container_width=True, key=f"proj_{pname}",
-                      icon=":material/check_circle:" if pname == active_proj else ":material/folder:",
-                      on_click=link_chat_to_project, args=(pname,))
+    # Projects row: opens the Projects page; a + shows on hover (always while on that page) to create a project
+    if _page == "projects":
+        st.markdown("<style>.st-key-proj_plus { opacity: 1 !important; }</style>", unsafe_allow_html=True)
+    with st.container(key="proj_row"):
+        st.button("Projects", icon=":material/inventory_2:", use_container_width=True, key="nav_projects",
+                  on_click=go_page, args=("projects",), type="primary" if _page == "projects" else "secondary")
+        with st.container(key="proj_plus"):
+            st.button(" ", icon=":material/add:", key="nav_projects_plus", on_click=go_projects_and_new)
 
-    if st.button("Artifacts", icon=":material/filter_none:", use_container_width=True, key="nav_artifacts"):
-        st.session_state["show_workspace"] = True
-        st.rerun()
+    st.button("Artifacts", icon=":material/filter_none:", use_container_width=True, key="nav_artifacts",
+              on_click=go_page, args=("artifacts",), type="primary" if _page == "artifacts" else "secondary")
 
     st.button("Code", icon=":material/code:", use_container_width=True, key="nav_code",
               on_click=soon, args=("Code is not available yet.",))
@@ -778,16 +995,18 @@ with st.sidebar:
     st.markdown(f"<div class='side-head'><span>Chats and tasks &#9662;</span>{FILTER_SVG}</div>",
                 unsafe_allow_html=True)
 
-    names = [n for n, msgs in st.session_state["chat_sessions"].items()
-             if msgs or (n == st.session_state["current_chat"] and st.session_state["pending_prompt"] is not None)][::-1]
+    names = listed_chats()
     if search_q:
         names = [n for n in names if search_q in chat_title(n).lower()]
     limit = len(names) if (st.session_state["show_all_chats"] or search_q) else 8
     for chat_name in names[:limit]:
-        is_active = chat_name == st.session_state["current_chat"]
+        _has_content = bool(st.session_state["chat_sessions"][chat_name]) or \
+            (chat_name == st.session_state["current_chat"] and st.session_state["pending_prompt"] is not None)
+        is_active = chat_name == st.session_state["current_chat"] and _page == "chat" and _has_content
         if st.button(chat_title(chat_name), use_container_width=True, key=f"btn_{chat_name}",
                      type="primary" if is_active else "secondary"):
             st.session_state["current_chat"] = chat_name
+            st.session_state["page"] = "chat"
             st.session_state["scroll_bottom"] = True
             st.rerun()
     if not search_q:
@@ -833,11 +1052,14 @@ with st.sidebar:
 
     # open the Settings dialog (from the menu, Ctrl+Shift+, or automatically when no key is set yet)
     _want_settings = st.session_state.pop("open_settings", False)
+    _want_newproj = st.session_state.pop("open_newproj", False)
     if not st.session_state["stored_groq_key"] and not st.session_state["auto_settings_done"]:
         st.session_state["auto_settings_done"] = True
         _want_settings = True
     if _want_settings:
         settings_dialog()
+    elif _want_newproj:
+        newproject_dialog()
 
 # ---------------- JAVASCRIPT (shortcuts, top-bar offset, auto-grow, auto-scroll) ----------------
 KEYS_AND_SCROLL_JS = """
@@ -862,8 +1084,8 @@ KEYS_AND_SCROLL_JS = """
     P.setTimeout(function () { var i = srchInput(); if (i) i.focus(); }, 400);
   }
 
-  /* Enter = send, Shift+Enter = new line, Ctrl+U = upload, Ctrl+Shift+, = settings,
-     and inside the search popup: arrows = change type, / = focus search, Tab = compose, Enter = New chat */
+  /* Enter = send, Shift+Enter = new line, Ctrl+U = upload, Ctrl+Shift+, = settings, Ctrl+Shift+O = new chat,
+     and inside the search popup: arrows = change type, / = focus search, Tab = compose, Enter = open the highlighted row */
   if (P.__chandlioKeys) { doc.removeEventListener("keydown", P.__chandlioKeys, true); }
   P.__chandlioKeys = function (e) {
     var t = e.target;
@@ -891,7 +1113,7 @@ KEYS_AND_SCROLL_JS = """
         return;
       }
       if (e.key === "Enter" && inInput && !inp.value.trim()) {
-        var nb = doc.querySelector(".st-key-srch_newchat button");
+        var nb = doc.querySelector(".st-key-srch_first button") || doc.querySelector(".st-key-srch_newchat button");
         if (nb) { e.preventDefault(); e.stopPropagation(); nb.click(); return; }
       }
     }
@@ -914,6 +1136,11 @@ KEYS_AND_SCROLL_JS = """
       e.preventDefault();
       var s = doc.querySelector(".st-key-hidden_settings button");
       if (s) s.click();
+    }
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "o" || e.key === "O")) {
+      e.preventDefault();
+      var nn = doc.querySelector(".st-key-nav_new button");
+      if (nn) nn.click();
     }
   };
   doc.addEventListener("keydown", P.__chandlioKeys, true);
@@ -1133,6 +1360,152 @@ def render_starter_chips():
             with col:
                 st.button(label, icon=icon, key=f"chip_{label}", on_click=set_starter, args=(text,))
 
+# ---------------- PROJECTS PAGE (from the video) ----------------
+_PROJECTS_EMPTY_SVG = ('<svg width="60" height="60" viewBox="0 0 64 64"><rect x="6" y="8" width="20" height="20" rx="1"/>'
+                       '<rect x="30" y="8" width="20" height="20" rx="1"/><rect x="6" y="32" width="20" height="20" rx="1"/>'
+                       '<rect x="30" y="30" width="22" height="22" rx="2" fill="#3a3a3a"/>'
+                       '<path d="M44 58V44a3 3 0 0 1 6 0v6l4-1.5a3 3 0 0 1 3 4.5l-4 6"/></svg>')
+
+def render_projects_page():
+    with st.container(key="pj_head"):
+        c1, c2, c3, c4 = st.columns([8, 0.7, 0.7, 2], vertical_alignment="center")
+        with c1:
+            st.markdown("<div class='pg-title'>Projects</div>", unsafe_allow_html=True)
+        with c2:
+            st.button(" ", icon=":material/search:", key="pj_search_btn", on_click=toggle_state, args=("proj_search_on",))
+        with c3:
+            st.button(" ", icon=":material/swap_vert:", key="pj_sort_btn", on_click=toggle_proj_sort)
+        with c4:
+            with st.container(key="pj_new"):
+                st.button("New project", key="pj_new_btn", on_click=open_newproject)
+
+    pq = ""
+    if st.session_state["proj_search_on"]:
+        pq = (st.text_input("Search projects", key="proj_q", placeholder="Search projects",
+                            label_visibility="collapsed") or "").strip().lower()
+
+    items = [(n, p) for n, p in st.session_state["projects"].items()
+             if not pq or pq in n.lower() or pq in p["description"].lower()]
+    if st.session_state["proj_sort"] == "recent":
+        items = items[::-1]
+    else:
+        items = sorted(items, key=lambda x: x[0].lower())
+
+    if not st.session_state["projects"]:
+        st.markdown(
+            f"<div class='pg-empty'>{_PROJECTS_EMPTY_SVG}<div class='t1'>Looking to start a project?</div>"
+            "<div class='t2'>Upload materials, set custom instructions, and organize conversations in one space.</div></div>",
+            unsafe_allow_html=True)
+        with st.container(key="pj_empty"):
+            st.button("New project", key="pj_empty_btn", on_click=open_newproject)
+    elif not items:
+        st.markdown("<div class='pg-empty'><div class='t1'>No projects match your search.</div></div>",
+                    unsafe_allow_html=True)
+    else:
+        with st.container(key="pj_cards"):
+            cols = st.columns(2, gap="medium")
+            for i, (name, p) in enumerate(items):
+                with cols[i % 2]:
+                    with st.container(key=f"pcard_{i}"):
+                        desc = _html.escape(p["description"]) if p["description"] else "No description"
+                        nfiles = len(p["files"])
+                        st.markdown(
+                            f"<div class='pcard'><div class='pc-title'>{_html.escape(name)}</div>"
+                            f"<div class='pc-desc'>{desc}</div>"
+                            f"<div class='pc-meta'>{nfiles} file{'s' if nfiles != 1 else ''}</div></div>",
+                            unsafe_allow_html=True)
+                        st.button(" ", key=f"pbtn_{i}", on_click=open_project, args=(name,))
+
+# ---------------- ARTIFACTS PAGE (from the video) ----------------
+_ARTIFACTS_EMPTY_SVG = ('<svg width="60" height="60" viewBox="0 0 64 64"><path d="M6 56 22 10l16 46z"/>'
+                        '<circle cx="42" cy="24" r="12" fill="#3a3a3a"/><rect x="34" y="38" width="22" height="18" rx="1"/></svg>')
+_TILE_SVGS = {
+    "docs": '<svg width="26" height="26" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/></svg>',
+    "slides": '<svg width="26" height="26" viewBox="0 0 24 24"><path d="M4 4h16"/><rect x="5" y="4" width="14" height="10" rx="1"/>'
+              '<path d="M12 14v4M9 21l3-3 3 3"/></svg>',
+    "design": '<svg width="26" height="26" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.4 0 2-1 1.6-2.2-.4-1.2.3-2.3 1.6-2.3H17a4 4 0 0 0 4-4C21 6.5 17 3 12 3z"/>'
+              '<circle cx="8" cy="11" r=".9"/><circle cx="12" cy="7.5" r=".9"/><circle cx="16" cy="10" r=".9"/></svg>',
+}
+_TILES = [("docs", "Docs", "Help me write a document about "),
+          ("slides", "Slides", "Help me create a presentation about "),
+          ("design", "Design", "Help me design ")]
+
+def render_artifacts_page():
+    st.markdown("<div class='pg-title'>Artifacts</div>", unsafe_allow_html=True)
+
+    with st.container(key="art_bar"):
+        t1, t2, t3, t4, t5 = st.columns([8, 0.55, 0.55, 0.55, 0.55], vertical_alignment="center")
+        with t1:
+            with st.container(key="art_tabs"):
+                if hasattr(st, "segmented_control"):
+                    st.segmented_control("Artifacts view", ["All", "Yours", "Shared with you"], default="All",
+                                         key="art_tab", label_visibility="collapsed")
+                else:
+                    st.radio("Artifacts view", ["All", "Yours", "Shared with you"], key="art_tab", horizontal=True,
+                             label_visibility="collapsed")
+        with t2:
+            st.button(" ", icon=":material/search:", key="ab_search", on_click=toggle_state, args=("art_search_on",))
+        with t3:
+            st.button(" ", icon=":material/filter_list:", key="ab_filter", on_click=toggle_state, args=("art_newest_first",))
+        with t4:
+            st.button(" ", icon=":material/view_list:", key="ab_list", on_click=toggle_state, args=("art_list_view",))
+        with t5:
+            st.button(" ", icon=":material/add:", key="ab_plus", on_click=go_chat, args=("Help me build ",))
+
+    tab = st.session_state.get("art_tab") or "All"
+    aq = ""
+    if st.session_state["art_search_on"]:
+        aq = (st.text_input("Search artifacts", key="art_q", placeholder="Search artifacts",
+                            label_visibility="collapsed") or "").strip().lower()
+
+    st.markdown("<div class='art-label'>Make something new</div>", unsafe_allow_html=True)
+    tcols = st.columns([1, 1, 1, 6], gap="small")
+    for col, (kind, label, prefill) in zip(tcols, _TILES):
+        with col:
+            with st.container(key=f"tile_{kind}"):
+                st.markdown(f"<div class='tile t-{kind}'>{_TILE_SVGS[kind]}</div><div class='tile-label'>{label}</div>",
+                            unsafe_allow_html=True)
+                st.button(" ", key=f"tbtn_{kind}", on_click=go_chat, args=(prefill,))
+
+    items = []
+    if tab in ("All", "Yours"):
+        items = [(i, a) for i, a in enumerate(st.session_state["artifact_items"])
+                 if not aq or aq in a["title"].lower() or aq in a["content"].lower()]
+        if st.session_state["art_newest_first"]:
+            items = items[::-1]
+
+    if items:
+        with st.container(key="art_cards"):
+            ncols = 1 if st.session_state["art_list_view"] else 3
+            cols = st.columns(ncols, gap="medium")
+            for n, (i, a) in enumerate(items):
+                with cols[n % ncols]:
+                    with st.container(key=f"acard_{i}"):
+                        snippet = _html.escape(a["content"].replace("```", "").strip()[:110])
+                        st.markdown(
+                            f"<div class='pcard'><div class='pc-title'>{_html.escape(a['title'])}</div>"
+                            f"<div class='pc-desc'>{snippet}</div><div class='pc-meta'>Artifact</div></div>",
+                            unsafe_allow_html=True)
+                        st.button(" ", key=f"abtn_{i}", on_click=open_artifact, args=(i,))
+    elif tab == "All":
+        if aq:
+            st.markdown("<div class='pg-empty'><div class='t1'>No artifacts match your search.</div></div>",
+                        unsafe_allow_html=True)
+        else:
+            st.markdown(
+                f"<div class='pg-empty'>{_ARTIFACTS_EMPTY_SVG}<div class='t1'>Your artifacts live here</div>"
+                f"<div class='t2'>Start from a template above, or ask {AI_NAME} to build something in any chat.</div></div>",
+                unsafe_allow_html=True)
+    elif tab == "Yours":
+        msg = "No artifacts match your search." if aq else "Create your first artifact"
+        sub = "" if aq else f"Artifacts you build with {AI_NAME} appear here."
+        st.markdown(f"<div class='pg-note'><div class='t1'>{msg}</div><div class='t2'>{sub}</div></div>",
+                    unsafe_allow_html=True)
+    else:
+        st.markdown("<div class='pg-note'><div class='t1'>No shared artifacts yet</div>"
+                    "<div class='t2'>When someone shares an artifact with you, it appears here.</div></div>",
+                    unsafe_allow_html=True)
+
 # ---------------- MAIN WINDOW ----------------
 if st.session_state.get("toast"):
     st.toast(st.session_state.pop("toast"))
@@ -1143,6 +1516,15 @@ if not active_key:
     st.markdown(f"<div style='height:14vh'></div><div class='hero'><img src='{STAR_URI}'>Welcome to Chandlio</div>",
                 unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #a1a1aa;'>Open the account menu (bottom-left) → Settings and paste your free Groq API key to unlock the application.</p>", unsafe_allow_html=True)
+    st.stop()
+
+# Projects / Artifacts pages replace the chat screen (no top bar, no input bar), like in the video
+if st.session_state["page"] in ("projects", "artifacts"):
+    run_js(KEYS_AND_SCROLL_JS)
+    if st.session_state["page"] == "projects":
+        render_projects_page()
+    else:
+        render_artifacts_page()
     st.stop()
 
 _DOC_SVG = '<svg width="20" height="20" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/></svg>'
@@ -1169,8 +1551,11 @@ try:
             st.caption(f"📁 Project: {proj_name}")
 
         if not current_messages and st.session_state["pending_prompt"] is None:
+            with st.container(key="plan_wrap"):
+                st.button("Free plan · :blue[Upgrade]", key="plan_upgrade", on_click=soon,
+                          args=("Upgrade is not available yet.",))
             st.markdown(
-                f"<div style='height:16vh'></div>"
+                f"<div style='height:9vh'></div>"
                 f"<div class='hero'><img src='{STAR_URI}'>{GREETING}</div>",
                 unsafe_allow_html=True)
 
@@ -1234,6 +1619,9 @@ try:
             # Keep the latest code answer for the Artifacts button, but do NOT split the screen automatically
             if "```" in answer:
                 st.session_state["workspace_content"] = answer
+                _t = prompt.strip().replace("\n", " ")
+                st.session_state["artifact_items"].append(
+                    {"title": (_t[:40] + "…") if len(_t) > 40 else (_t or "Artifact"), "content": answer})
 
             # Generate a short Claude-style title once per chat, then refresh sidebar + top bar
             chat_key = st.session_state["current_chat"]
