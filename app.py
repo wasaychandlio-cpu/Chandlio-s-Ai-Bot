@@ -13,13 +13,57 @@ st.set_page_config(page_title="Chandlio's AI Bot", page_icon="⚡", layout="wide
 
 GREETING = "Let’s have a think"      # <- change the home-screen heading here
 MODEL_LABEL, MODEL_NOTE = "gpt-oss-120b", "Fast"
+ACCOUNT_EMAIL = "mabdulwasay81@gmail.com"   # <- shown at the top of the account menu
+AI_NAME = "Chandlio"                 # <- the AI name used in every label (replaces "Claude")
 
-# Claude-style starburst logo (data URI so the markdown sanitizer keeps it)
+# ---------------- LOGO ----------------
+# Put your logo image (png / jpg / jpeg / webp) in the same folder as app.py.
+# Any file whose name starts with "logo" is accepted (logo.png, logo.jpg, logo.png.png ...).
+# If nothing valid is found, the Claude-style starburst is shown, so you never get a broken image.
+_LOGO_B64 = ""   # optional: paste a base64 logo string here instead of using a file
+
 _STAR_SVG = ('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">'
              '<g stroke="#d97757" stroke-width="3.2" stroke-linecap="round">'
              + "".join(f'<line x1="20" y1="20" x2="20" y2="4" transform="rotate({a} 20 20)"/>' for a in range(0, 360, 30))
              + "</g></svg>")
-STAR_URI = "data:image/svg+xml;base64," + base64.b64encode(_STAR_SVG.encode()).decode()
+
+def _sniff_mime(raw):
+    if raw[:3] == b"\xff\xd8\xff":
+        return "image/jpeg"
+    if raw[:8] == b"\x89PNG\r\n\x1a\n":
+        return "image/png"
+    if raw[:4] == b"RIFF" and raw[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+def _load_logo():
+    try:
+        folders = [pathlib.Path(__file__).resolve().parent, pathlib.Path.cwd()]
+        exts = (".png", ".jpg", ".jpeg", ".webp")
+        for folder in folders:
+            if not folder.is_dir():
+                continue
+            files = sorted(p for p in folder.iterdir()
+                           if p.is_file() and p.name.lower().startswith("logo") and p.name.lower().endswith(exts))
+            for p in files:
+                raw = p.read_bytes()
+                mime = _sniff_mime(raw)
+                if mime:
+                    return f"data:{mime};base64," + base64.b64encode(raw).decode()
+    except Exception:
+        pass
+    return None
+
+def _b64_logo_uri(b64):
+    try:
+        raw = base64.b64decode(b64.strip(), validate=True)
+    except Exception:
+        return None
+    mime = _sniff_mime(raw)
+    return f"data:{mime};base64,{b64.strip()}" if mime else None
+
+_STAR_FALLBACK_URI = "data:image/svg+xml;base64," + base64.b64encode(_STAR_SVG.encode()).decode()
+STAR_URI = _load_logo() or (_b64_logo_uri(_LOGO_B64) if _LOGO_B64.strip() else None) or _STAR_FALLBACK_URI
 
 st.markdown("""
 <style>
@@ -46,7 +90,7 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
     border-radius: 12px; padding: 6px 16px; font-size: .95rem; }
 .hero { font-family: var(--serif); font-weight: 400; font-size: 3rem; color: #f5f4ef;
     display: flex; align-items: center; justify-content: center; gap: .9rem; margin: 0 0 1.8rem; line-height: 1.1; }
-.hero img { width: 40px; height: 40px; }
+.hero img { height: 64px; width: auto; border-radius: 0 !important; mix-blend-mode: screen; }
 
 /* ---------- Chat messages (user = box, assistant = plain serif text) ---------- */
 [data-testid="stChatMessage"] { background: transparent !important; border: none !important; padding: .4rem 0 !important; }
@@ -89,14 +133,14 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
 [data-testid="stSidebar"] [data-testid="stExpander"] { border: none !important; }
 [data-testid="stSidebar"] .stTextInput input { background: #252525 !important; color: #fff !important; border: 1px solid #333 !important; border-radius: 8px !important; }
 
-/* ---------- Input bar: compact one-row pill docked at the bottom (like Claude) ---------- */
+/* ---------- Input bar: rounded box docked at the bottom (like Claude) ---------- */
 [data-testid="stLayoutWrapper"]:has(> .st-key-inputbar),
 [data-testid="stElementContainer"]:has(> .st-key-inputbar) { display: contents !important; }
 .st-key-inputbar { position: sticky !important; bottom: 0; z-index: 999;
     width: 100%; max-width: 760px; margin: 1rem auto 0 auto;
     background: #191919; padding: .5rem 0 .3rem 0; }
-.st-key-pill { background: #2b2b2b; border: 1px solid #3d3d3d; border-radius: 28px;
-    padding: 8px 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.45); gap: .3rem !important; }
+.st-key-pill { background: #2b2b2b; border: 1px solid #3d3d3d; border-radius: 26px;
+    padding: 8px 12px 8px 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.45); gap: .2rem !important; }
 .st-key-inputbar .stTextArea, .st-key-inputbar .stTextArea > div, .st-key-inputbar .stTextArea > div > div,
 .st-key-inputbar [data-baseweb="textarea"], .st-key-inputbar [data-baseweb="base-input"] {
     background: transparent !important; border: none !important; box-shadow: none !important; }
@@ -104,10 +148,10 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
     height: auto !important; min-height: 44px !important; }
 .st-key-inputbar .stTextArea textarea { background: transparent !important; border: none !important; box-shadow: none !important;
     resize: none !important; font-size: 1.05rem !important; line-height: 1.5 !important; color: #fff !important;
-    padding: 9px 4px !important; height: 44px; min-height: 44px !important; max-height: 200px !important; overflow-y: auto; }
+    padding: 9px 8px !important; height: 44px; min-height: 44px !important; max-height: 200px !important; overflow-y: auto; }
 .st-key-inputbar .stTextArea textarea::placeholder { color: #8a8a8a !important; }
 .st-key-inputbar [data-testid="InputInstructions"], .st-key-inputbar [data-testid="stTextAreaInstructions"] { display: none !important; }
-.st-key-inputbar [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: .3rem !important; align-items: flex-end !important; }
+.st-key-inputbar [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: .3rem !important; align-items: center !important; }
 .st-key-inputbar [data-testid="stColumn"] { min-width: 0 !important; }
 .st-key-inputbar [data-testid="stElementContainer"] { margin: 0 !important; }
 .st-key-inputbar [data-testid="stMarkdownContainer"] p { margin: 0 !important; }
@@ -123,31 +167,52 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
 .st-key-plus_wrap [data-testid="stPopover"] button [data-testid="stIconMaterial"] { display: none !important; }
 .st-key-send_btn button { font-size: 1.3rem !important; }
 
-/* footer under the pill: disclaimer left, model right */
-.input-foot { display: flex; justify-content: space-between; align-items: center; gap: 1rem;
-    padding: .55rem .9rem 0; color: #8a8a8a; font-size: .85rem; }
-.input-foot .mdl { color: #ffffff; white-space: nowrap; }
-.input-foot .mdl b { color: #9a9a9a; font-weight: 400; margin-left: .3rem; }
-@media (max-width: 640px) { .input-foot .dis { display: none; } .input-foot { justify-content: flex-end; } }
+/* Chat | Cowork toggle (bottom-left of the box) */
+.st-key-mode_wrap [data-testid="stButtonGroup"], .st-key-mode_wrap [role="radiogroup"] {
+    background: #222; border: 1px solid #353535; border-radius: 12px; padding: 2px; gap: 2px; width: fit-content; }
+.st-key-mode_wrap [data-testid^="stBaseButton-segmented"], .st-key-mode_wrap [role="radiogroup"] label {
+    background: transparent !important; border: none !important; outline: none !important; color: #9a9a9a !important;
+    border-radius: 9px !important; min-height: 2rem !important; padding: 0 .9rem !important; box-shadow: none !important; }
+.st-key-mode_wrap [data-testid^="stBaseButton-segmented"] p { color: inherit !important; }
+.st-key-mode_wrap [data-testid^="stBaseButton-segmented"][data-testid$="Active"],
+.st-key-mode_wrap [data-testid^="stBaseButton-segmented"][aria-pressed="true"],
+.st-key-mode_wrap [data-testid^="stBaseButton-segmented"][aria-checked="true"] {
+    background: #3a3a3a !important; color: #ffffff !important; border: none !important; outline: none !important; }
 
-/* ---------- + menu (left aligned, compact, like Claude) ---------- */
+/* model label inside the box (bottom-right) */
+.st-key-inputbar [data-testid="stMarkdown"], .st-key-inputbar [data-testid="stMarkdownContainer"] { margin: 0 !important; padding: 0 !important; }
+.mdl-in { color: #ffffff; white-space: nowrap; font-size: .95rem; height: 2.4rem; line-height: 2.4rem;
+    display: flex; align-items: center; justify-content: flex-end; }
+.mdl-in b { color: #9a9a9a; font-weight: 400; margin-left: .35rem; }
+@media (max-width: 640px) { .mdl-in { display: none; } }
+
+/* footer under the box */
+.input-foot { display: flex; justify-content: center; align-items: center; gap: 1rem;
+    padding: .55rem .9rem 0; color: #8a8a8a; font-size: .85rem; }
+@media (max-width: 640px) { .input-foot .dis { font-size: .75rem; } }
+
+/* ---------- + menu and account menu (left aligned, compact, like Claude) ---------- */
 [data-testid="stPopoverBody"] { background: #2b2b2b !important; border: 1px solid #3d3d3d !important; border-radius: 16px !important;
     width: 330px !important; min-width: 330px !important; padding: .4rem !important; max-height: 85vh !important; }
 [data-testid="stPopoverBody"] [data-testid="stVerticalBlock"] { gap: .1rem !important; }
 [data-testid="stPopoverBody"] hr { margin: .3rem .5rem !important; border-color: #3d3d3d !important; }
 [data-testid="stPopoverBody"] [data-testid="stElementContainer"] { margin: 0 !important; }
-[class*="st-key-menu_"] button { display: flex !important; justify-content: flex-start !important; text-align: left !important;
+[class*="st-key-menu_"] button, [class*="st-key-acct_"] button { display: flex !important; justify-content: flex-start !important; text-align: left !important;
     gap: .6rem; width: 100%; background: transparent !important; border: none !important; color: #fff !important;
     padding: .45rem .7rem !important; border-radius: 10px !important; font-size: 1rem !important; min-height: 0 !important; }
-[class*="st-key-menu_"] button > div, [class*="st-key-menu_"] button [data-testid="stMarkdownContainer"] {
+[class*="st-key-menu_"] button > div, [class*="st-key-menu_"] button [data-testid="stMarkdownContainer"],
+[class*="st-key-acct_"] button > div, [class*="st-key-acct_"] button [data-testid="stMarkdownContainer"] {
     justify-content: flex-start !important; text-align: left !important; flex: 0 1 auto; width: auto; }
-[class*="st-key-menu_"] button p { text-align: left !important; }
-[class*="st-key-menu_"] button:hover { background: #3a3a3a !important; }
+[class*="st-key-menu_"] button p, [class*="st-key-acct_"] button p { text-align: left !important; }
+[class*="st-key-menu_"] button:hover, [class*="st-key-acct_"] button:hover { background: #3a3a3a !important; }
 .st-key-menu_upload button::after { content: "Ctrl+U"; margin-left: auto; color: #9a9a9a; font-size: .95rem; }
 .st-key-menu_project button::after, .st-key-menu_skills button::after,
-.st-key-menu_connector button::after, .st-key-menu_design button::after { content: "›"; margin-left: auto; color: #aaa; font-size: 1.5rem; line-height: 1; }
+.st-key-menu_connector button::after, .st-key-menu_design button::after,
+.st-key-acct_learn button::after { content: "›"; margin-left: auto; color: #aaa; font-size: 1.5rem; line-height: 1; }
+.st-key-acct_settings button::after { content: "Ctrl+Shift+,"; margin-left: auto; color: #9a9a9a; font-size: .95rem; }
 .st-key-menu_web_on button::after { content: "✓"; margin-left: auto; color: #4a9eff; font-size: 1.3rem; }
-.st-key-hidden_upload { display: none; }
+.st-key-hidden_upload, .st-key-hidden_settings { display: none; }
+.acct-email { color: #a8a8a8; font-size: .95rem; padding: .5rem .7rem .4rem; word-break: break-all; }
 
 /* ---------- Starter chips under the input bar ---------- */
 .st-key-chips [data-testid="stHorizontalBlock"] { justify-content: center; flex-wrap: wrap !important; gap: .5rem !important; margin-top: 1.4rem; }
@@ -180,10 +245,211 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
 .st-key-nav_code button::after { content: "Upgrade"; margin-left: auto; color: #5aa9ff; background: #1b2430; border: 1px solid #2c3a4d;
     border-radius: 999px; padding: 1px 10px; font-size: .8rem; white-space: nowrap; flex: 0 0 auto; }
 .side-head { display: flex; align-items: center; justify-content: space-between; color: #f2f2f2; font-weight: 600;
-    font-size: 1rem; padding: 1.4rem .7rem .4rem; }
+    font-size: 1rem; padding: 1.4rem .7rem .9rem; }
 .side-head svg { stroke: #e8e8e8; fill: none; stroke-width: 1.8; stroke-linecap: round; }
 .st-key-view_all button { color: #9a9a9a !important; }
 [data-testid="stSidebar"] [data-testid="stBaseButton-primary"] { background: #3a3a39 !important; }
+
+/* ---------- Account row pinned to the bottom of the sidebar ---------- */
+[data-testid="stSidebarUserContent"] { padding-bottom: 5.5rem !important; }
+.st-key-account_wrap { position: fixed !important; left: 0; bottom: 0; width: var(--sbw, 21rem); box-sizing: border-box;
+    z-index: 1000; border-top: 1px solid #2a2a2a; padding: .7rem 1rem .8rem 1rem; background: #1f1f1e; }
+html[data-sbcollapsed] .st-key-account_wrap { display: none !important; }
+.st-key-side_account button { display: flex !important; align-items: center !important; gap: .7rem; width: 100%; font-size: 1.05rem !important; }
+.st-key-side_account button::before { content: "C"; flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%;
+    background: #3a3a39; color: #e8e8e8; display: inline-flex; align-items: center; justify-content: center; font-size: .85rem; }
+.st-key-side_devices button { color: #e8e8e8 !important; justify-content: center !important; padding: .42rem .4rem !important; }
+
+/* ---------- Search popup ---------- */
+[data-testid="stDialog"] [role="dialog"] { background: #2f2f2f !important; border-radius: 20px !important;
+    padding: 0 !important; width: 720px !important; max-width: 94vw !important; overflow: hidden; }
+[data-testid="stDialog"] [role="dialog"] h2 { display: none !important; }
+[data-testid="stDialog"] button[aria-label="Close"] { position: absolute !important; top: 18px !important; right: 20px !important;
+    color: #f2f2f2 !important; z-index: 5; transform: scale(1.35); }
+[data-testid="stDialog"] [data-testid="stVerticalBlock"] { gap: 0 !important; }
+
+.st-key-srch_head { padding: 22px 64px 0 26px; }
+.st-key-srch_head .stTextInput, .st-key-srch_head .stTextInput > div, .st-key-srch_head .stTextInput > div > div,
+.st-key-srch_head [data-baseweb="input"], .st-key-srch_head [data-baseweb="base-input"] {
+    background: transparent !important; border: none !important; box-shadow: none !important; }
+.st-key-srch_head input { background: transparent !important; border: none !important; box-shadow: none !important;
+    color: #fff !important; font-size: 1.25rem !important; padding: 6px 0 !important; }
+.st-key-srch_head input::placeholder { color: #8a8a8a !important; }
+.st-key-srch_head [data-testid="InputInstructions"] { display: none !important; }
+
+.st-key-srch_tabs { padding: 10px 18px 18px 18px; border-bottom: 1px solid #3d3d3d; }
+.st-key-srch_tabs [data-testid="stButtonGroup"], .st-key-srch_tabs [role="radiogroup"] {
+    background: transparent !important; border: none !important; gap: 4px !important; flex-wrap: nowrap !important; padding: 0 !important; }
+.st-key-srch_tabs [data-testid^="stBaseButton-segmented"], .st-key-srch_tabs [role="radiogroup"] label {
+    background: transparent !important; border: none !important; outline: none !important; box-shadow: none !important;
+    color: #e8e8e8 !important; border-radius: 10px !important; min-height: 2.5rem !important; padding: 0 .9rem !important; }
+.st-key-srch_tabs [data-testid^="stBaseButton-segmented"] p { color: inherit !important; font-size: 1.1rem !important; }
+.st-key-srch_tabs [data-testid^="stBaseButton-segmented"][data-testid$="Active"],
+.st-key-srch_tabs [data-testid^="stBaseButton-segmented"][aria-pressed="true"],
+.st-key-srch_tabs [data-testid^="stBaseButton-segmented"][aria-checked="true"] { background: #4a4a4a !important; color: #fff !important; }
+
+.st-key-srch_body { padding: 22px 12px 12px 12px; }
+.srch-label { color: #9a9a9a; font-size: 1rem; padding: 0 22px 10px; }
+.srch-empty { text-align: center; color: #9a9a9a; font-size: 1.5rem; padding-top: 2.4rem; padding-bottom: 1.1rem; }
+.st-key-srch_all { display: flex; justify-content: center; padding-bottom: 1rem; }
+.st-key-srch_all button { background: #4a4a4a !important; border: none !important; color: #fff !important;
+    border-radius: 10px !important; padding: .3rem 1rem !important; font-size: 1.1rem !important; min-height: 0 !important; }
+
+[class*="st-key-srch_row_"] button, .st-key-srch_newchat button { display: flex !important; justify-content: flex-start !important;
+    text-align: left !important; gap: .8rem; width: 100%; background: transparent !important; border: none !important;
+    color: #fff !important; padding: .7rem 1rem !important; border-radius: 12px !important; font-size: 1.15rem !important; min-height: 0 !important; }
+[class*="st-key-srch_row_"] button:hover, .st-key-srch_newchat button:hover { background: #3a3a3a !important; }
+
+.srch-foot { display: flex; justify-content: space-between; align-items: center; padding: 14px 26px;
+    border-top: 1px solid #3d3d3d; color: #a8a8a8; font-size: 1rem; }
+.srch-foot .grp { display: flex; align-items: center; gap: 2rem; }
+.srch-foot .it { display: inline-flex; align-items: center; gap: .55rem; }
+.srch-foot kbd { border: 1px solid #5a5a5a; border-radius: 6px; padding: 0 .4rem; font-family: inherit; font-size: .9rem; color: #a8a8a8; }
+
+/* =====================================================================
+   NEW (from the video): sidebar details, pages, create-project dialog
+   ===================================================================== */
+
+/* sidebar: "New" shows its shortcut on hover, "Projects" shows a + on hover */
+.st-key-nav_new button:hover::after { content: "Ctrl+Shift+O"; margin-left: auto; color: #9a9a9a; font-size: .8rem; white-space: nowrap; }
+.st-key-proj_row { position: relative; }
+.st-key-proj_plus { position: absolute !important; right: 6px; top: 50%; transform: translateY(-50%);
+    width: auto !important; opacity: 0; z-index: 3; }
+.st-key-proj_row:hover .st-key-proj_plus { opacity: 1; }
+.st-key-proj_plus .stButton, .st-key-proj_plus [data-testid="stElementContainer"] { width: auto !important; }
+.st-key-proj_plus button { width: auto !important; padding: .1rem .4rem !important; font-size: 1.2rem !important; }
+
+/* home screen "Free plan · Upgrade" pill */
+.st-key-plan_wrap { align-items: center; }
+.st-key-plan_wrap button { background: #222 !important; border: 1px solid #2f2f2f !important; color: #a8a8a8 !important;
+    border-radius: 12px !important; min-height: 0 !important; padding: .25rem .95rem !important; font-size: .9rem !important; }
+.st-key-plan_wrap button:hover { background: #2a2a2a !important; }
+
+/* page headers (Projects / Artifacts) */
+.pg-title { font-family: var(--serif); font-size: 2rem; font-weight: 400; color: #f5f4ef; line-height: 1.2; }
+.st-key-pj_head [data-testid="stHorizontalBlock"], .st-key-art_bar [data-testid="stHorizontalBlock"] {
+    align-items: center !important; flex-wrap: nowrap !important; gap: .3rem !important; }
+.st-key-pj_head [data-testid="stColumn"], .st-key-art_bar [data-testid="stColumn"] { min-width: 0 !important; }
+.st-key-pj_search_btn button, .st-key-pj_sort_btn button, [class*="st-key-ab_"] button {
+    background: transparent !important; border: none !important; color: #e6e6e6 !important; box-shadow: none !important;
+    min-height: 2.2rem !important; padding: 0 .45rem !important; border-radius: 8px !important; }
+.st-key-pj_search_btn button:hover, .st-key-pj_sort_btn button:hover, [class*="st-key-ab_"] button:hover { background: #2a2a29 !important; }
+.st-key-pj_new button, .st-key-pj_empty button { background: #f5f4ef !important; color: #191919 !important; border: none !important;
+    border-radius: 8px !important; min-height: 2.1rem !important; padding: 0 .9rem !important; font-weight: 500 !important; box-shadow: none !important; }
+.st-key-pj_new button p, .st-key-pj_empty button p { color: #191919 !important; }
+.st-key-pj_new button:hover, .st-key-pj_empty button:hover { background: #ffffff !important; }
+.st-key-pj_new { display: flex; justify-content: flex-end; }
+
+/* empty states */
+.pg-empty { display: flex; flex-direction: column; align-items: center; text-align: center; margin-top: 5rem; }
+.pg-empty svg { stroke: #e8e8e8; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.pg-empty .t1 { color: #b5b5b5; font-size: .95rem; margin-top: 1rem; }
+.pg-empty .t2 { color: #8a8a8a; font-size: .85rem; max-width: 320px; margin-top: .6rem; line-height: 1.5; }
+.st-key-pj_empty { align-items: center; margin-top: .6rem; }
+.pg-note { margin-top: 2.2rem; }
+.pg-note .t1 { color: #b5b5b5; font-size: .95rem; }
+.pg-note .t2 { color: #8a8a8a; font-size: .85rem; max-width: 300px; margin-top: .8rem; line-height: 1.5; }
+
+/* project and artifact cards: HTML card with an invisible button laid over it */
+[class*="st-key-pcard_"], [class*="st-key-acard_"], [class*="st-key-tile_"] { position: relative; gap: 0 !important; }
+[class*="st-key-pcard_"] .stButton, [class*="st-key-acard_"] .stButton, [class*="st-key-tile_"] .stButton {
+    position: absolute !important; inset: 0; width: 100% !important; height: 100% !important; }
+[class*="st-key-pcard_"] .stButton button, [class*="st-key-acard_"] .stButton button, [class*="st-key-tile_"] .stButton button {
+    width: 100% !important; height: 100% !important; opacity: 0; cursor: pointer; }
+.pcard { background: #222; border: 1px solid #2f2f2f; border-radius: 14px; padding: 1rem 1.1rem; min-height: 110px; }
+[class*="st-key-pcard_"]:hover .pcard, [class*="st-key-acard_"]:hover .pcard { background: #2a2a29; border-color: #3a3a39; }
+.pcard .pc-title { font-family: var(--serif); font-size: 1.15rem; color: #f5f4ef; margin-bottom: .35rem; }
+.pcard .pc-desc { color: #a8a8a8; font-size: .9rem; line-height: 1.45; max-height: 3em; overflow: hidden; }
+.pcard .pc-meta { color: #7d7d7d; font-size: .8rem; margin-top: .7rem; }
+.st-key-pj_cards, .st-key-art_cards { margin-top: 1.4rem; }
+
+/* artifacts page */
+.art-label { color: #a8a8a8; font-size: .85rem; margin: 1.3rem 0 .6rem; }
+.tile { width: 112px; height: 72px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden; }
+.tile svg { stroke-width: 1.8; fill: none; stroke-linecap: round; stroke-linejoin: round; position: relative; z-index: 2; }
+.tile::before { content: ""; position: absolute; inset: 0; opacity: .22;
+    background: repeating-linear-gradient(115deg, transparent 0 9px, rgba(255,255,255,.55) 9px 10px); }
+.t-docs { background: linear-gradient(135deg, #1d429a, #162f78); } .t-docs svg { stroke: #a9c8ff; }
+.t-slides { background: linear-gradient(135deg, #8f3813, #6b270c); } .t-slides svg { stroke: #ffb994; }
+.t-design { background: linear-gradient(135deg, #5326b3, #3b1a89); } .t-design svg { stroke: #d6c2ff; }
+.tile-label { color: #d0d0d0; font-size: .8rem; margin-top: .4rem; }
+[class*="st-key-tile_"] { width: 112px; }
+.st-key-art_tabs [data-testid="stButtonGroup"], .st-key-art_tabs [role="radiogroup"] {
+    background: transparent !important; border: none !important; gap: 4px !important; flex-wrap: nowrap !important; padding: 0 !important; }
+.st-key-art_tabs [data-testid^="stBaseButton-segmented"], .st-key-art_tabs [role="radiogroup"] label {
+    background: transparent !important; border: none !important; outline: none !important; box-shadow: none !important;
+    color: #e8e8e8 !important; border-radius: 8px !important; min-height: 2rem !important; padding: 0 .8rem !important; }
+.st-key-art_tabs [data-testid^="stBaseButton-segmented"] p { color: inherit !important; }
+.st-key-art_tabs [data-testid^="stBaseButton-segmented"][data-testid$="Active"],
+.st-key-art_tabs [data-testid^="stBaseButton-segmented"][aria-pressed="true"],
+.st-key-art_tabs [data-testid^="stBaseButton-segmented"][aria-checked="true"] { background: #3a3a3a !important; color: #fff !important; }
+
+/* "Create a project" popup */
+[data-testid="stDialog"] [role="dialog"]:has(.st-key-np_wrap) { width: 520px !important; padding: 22px 24px 22px 24px !important;
+    background: #2b2b2b !important; border-radius: 16px !important; }
+[data-testid="stDialog"] [role="dialog"]:has(.st-key-np_wrap) h2 { display: block !important; font-size: 1rem !important;
+    font-weight: 600 !important; color: #fff !important; padding: 0 0 .9rem 0 !important; }
+[data-testid="stDialog"] [role="dialog"]:has(.st-key-np_wrap) button[aria-label="Close"] { top: 16px !important; right: 18px !important; transform: scale(1); }
+.st-key-np_wrap [data-testid="stElementContainer"] { margin-bottom: .6rem !important; }
+.st-key-np_wrap label, .st-key-np_wrap label p { color: #f2f2f2 !important; font-size: .9rem !important; font-weight: 500 !important; }
+.st-key-np_wrap input, .st-key-np_wrap textarea { background: #242424 !important; color: #fff !important;
+    border: 1px solid #3d3d3d !important; border-radius: 8px !important; }
+.st-key-np_wrap input:focus, .st-key-np_wrap textarea:focus { border-color: #4a9eff !important; }
+.st-key-np_wrap [data-baseweb="input"], .st-key-np_wrap [data-baseweb="textarea"], .st-key-np_wrap [data-baseweb="base-input"] {
+    background: #242424 !important; border-radius: 8px !important; }
+.st-key-np_wrap [data-testid="InputInstructions"] { display: none !important; }
+.st-key-np_wrap [data-testid="stHorizontalBlock"] { gap: .5rem !important; }
+.st-key-np_cancel button, .st-key-np_create button { border: none !important; border-radius: 8px !important; min-height: 2.2rem !important;
+    box-shadow: none !important; font-weight: 500 !important; }
+.st-key-np_cancel button { background: #4a4a4a !important; color: #fff !important; }
+.st-key-np_create button { background: #f5f4ef !important; color: #191919 !important; }
+.st-key-np_create button p { color: #191919 !important; }
+
+/* ---------- fixes: search popup + artifacts tabs on newer Streamlit versions ---------- */
+[data-testid="stDialog"] [role="dialog"]:has(.st-key-srch_head) { background: #2f2f2f !important; border-radius: 20px !important;
+    padding: 0 !important; width: 720px !important; max-width: 94vw !important; margin: 0 auto !important; overflow: hidden !important; }
+[data-testid="stDialog"] [role="dialog"]:has(.st-key-srch_head) h2,
+[data-testid="stDialog"] [role="dialog"]:has(.st-key-srch_head) [data-testid="stDialogTitle"] { display: none !important; }
+[data-testid="stDialog"] [role="dialog"]:has(.st-key-srch_head) > div,
+[data-testid="stDialog"] [role="dialog"]:has(.st-key-srch_head) [data-testid="stVerticalBlock"] { background: transparent !important; }
+
+.st-key-srch_tabs button, .st-key-srch_tabs label, .st-key-art_tabs button, .st-key-art_tabs label {
+    background: transparent !important; border: none !important; outline: none !important; box-shadow: none !important;
+    color: #e8e8e8 !important; border-radius: 10px !important; min-height: 2.5rem !important; padding: 0 .9rem !important; }
+.st-key-art_tabs button, .st-key-art_tabs label { min-height: 2rem !important; padding: 0 .8rem !important; border-radius: 8px !important; }
+.st-key-srch_tabs button p, .st-key-srch_tabs label p, .st-key-art_tabs button p, .st-key-art_tabs label p {
+    color: inherit !important; font-size: 1.1rem !important; }
+.st-key-art_tabs button p, .st-key-art_tabs label p { font-size: 1rem !important; }
+.st-key-srch_tabs button:hover, .st-key-art_tabs button:hover { background: #3a3a3a !important; }
+.st-key-srch_tabs button[aria-checked="true"], .st-key-srch_tabs button[aria-pressed="true"],
+.st-key-srch_tabs button[kind$="Active"], .st-key-srch_tabs button[data-testid$="Active"],
+.st-key-art_tabs button[aria-checked="true"], .st-key-art_tabs button[aria-pressed="true"],
+.st-key-art_tabs button[kind$="Active"], .st-key-art_tabs button[data-testid$="Active"] {
+    background: #4a4a4a !important; color: #ffffff !important; }
+.st-key-art_tabs button[aria-checked="true"], .st-key-art_tabs button[aria-pressed="true"],
+.st-key-art_tabs button[kind$="Active"], .st-key-art_tabs button[data-testid$="Active"] { background: #3a3a3a !important; }
+
+/* search rows: icon + text on the left, like the + menu */
+[class*="st-key-srch_row_"] button > div, [class*="st-key-srch_row_"] button [data-testid="stMarkdownContainer"],
+.st-key-srch_newchat button > div, .st-key-srch_newchat button [data-testid="stMarkdownContainer"] {
+    justify-content: flex-start !important; text-align: left !important; flex: 0 1 auto; width: auto; }
+[class*="st-key-srch_row_"] button p, .st-key-srch_newchat button p { text-align: left !important; }
+[class*="st-key-srch_row_"] button, .st-key-srch_newchat button { display: flex !important; justify-content: flex-start !important;
+    align-items: center !important; width: 100% !important; }
+[class*="st-key-srch_row_"] button::after, .st-key-srch_newchat button::after { white-space: nowrap; flex: 0 0 auto; }
+[data-testid="stDialog"] .srch-label { padding-left: 22px; }
+
+/* ---------- fix: remove the dark outer frame around the search popup + footer spacing ---------- */
+[data-testid="stDialog"] div:has(.st-key-srch_head) { background: transparent !important; box-shadow: none !important;
+    border: none !important; outline: none !important; }
+[data-testid="stDialog"] [role="dialog"]:has(.st-key-srch_head) { background: #2f2f2f !important; }
+[data-testid="stDialog"] div:has(.st-key-np_wrap):not([role="dialog"]) { background: transparent !important; box-shadow: none !important; border: none !important; }
+[data-testid="stDialog"] [role="dialog"]:has(.st-key-np_wrap) { background: #2b2b2b !important; }
+.srch-foot { gap: .8rem; flex-wrap: nowrap; font-size: .9rem; padding: 14px 20px; }
+.srch-foot .grp { gap: 1.1rem; flex-wrap: nowrap; }
+.srch-foot .it { gap: .4rem; white-space: nowrap; }
+.srch-foot kbd { font-size: .8rem; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -265,6 +531,19 @@ defaults = {
     "attachments": [],
     "panel": None,
     "menu_view": "main",
+    "acct_view": "main",
+    "open_settings": False,
+    "settings_open": False,
+    "auto_settings_done": False,
+    "settings_section": "Account",
+    "settings_search": "",
+    "custom_instructions": "",
+    "notifications_enabled": True,
+    "reduce_motion": False,
+    "response_style": "Balanced",
+    "profile_full_name": "Chandlio User",
+    "profile_call_name": "Chandlio User",
+    "profile_work": "Other",
     "web_search": True,
     "shot_trigger": 0,
     "last_shot_id": None,
@@ -275,28 +554,39 @@ defaults = {
     "show_search": False,
     "show_all_chats": False,
     "scroll_bottom": False,       # when True, the page scrolls to the newest message
-    "show_settings": False,
-    "settings_section": "Account",
-    "theme_choice": "Midnight Ember",
-    "custom_instructions": "",
-    "notifications_enabled": True,
-    "reduce_motion": False,
+    # ---- pages shown in the video ----
+    "page": "chat",               # "chat" | "projects" | "artifacts"
+    "open_newproj": False,        # opens the "Create a project" popup
+    "proj_search_on": False,
+    "proj_sort": "recent",        # "recent" | "name"
+    "artifact_items": [],         # every code answer, listed on the Artifacts page
+    "art_search_on": False,
+    "art_newest_first": True,
+    "art_list_view": False,
 }
 for k, v in defaults.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
-# Centered Claude-width column (wider only when the artifact workspace is open)
-_col_width = "1200px" if st.session_state["show_workspace"] else "760px"
+_page = st.session_state["page"]
+
+# Centered Claude-width column (wider only when the artifact workspace is open, or on the Projects / Artifacts pages)
+if _page != "chat":
+    _col_width = "1100px"
+else:
+    _col_width = "1200px" if st.session_state["show_workspace"] else "760px"
 st.markdown(
     f"<style>.block-container {{ max-width: {_col_width} !important; margin: 0 auto !important; "
     f"padding-left: 1.2rem !important; padding-right: 1.2rem !important; }}</style>",
     unsafe_allow_html=True,
 )
+if _page != "chat":
+    st.markdown("<style>.block-container, [data-testid=\"stMainBlockContainer\"] { padding-top: 2.6rem !important; }</style>",
+                unsafe_allow_html=True)
 
 # Once a chat has messages, dock the input bar at the very bottom of the screen (like Claude)
-_has_msgs = bool(st.session_state["chat_sessions"][st.session_state["current_chat"]]) \
-    or st.session_state["pending_prompt"] is not None
+_has_msgs = _page == "chat" and (bool(st.session_state["chat_sessions"][st.session_state["current_chat"]])
+                                 or st.session_state["pending_prompt"] is not None)
 if _has_msgs:
     st.markdown("""
 <style>
@@ -377,7 +667,19 @@ def chat_title(name):
         if m["role"] == "user":
             t = m["content"].strip().replace("\n", " ")
             return (t[:34] + "…") if len(t) > 34 else t
+    if name == next(iter(st.session_state["chat_sessions"]), None):
+        return f"Your first chat with {AI_NAME}"
     return "New chat"
+
+def listed_chats():
+    """Chats shown in the sidebar and in Search > Recents (newest first).
+    When nothing has been said yet, the very first chat is listed, like in the video."""
+    s = st.session_state
+    names = [n for n, msgs in s["chat_sessions"].items()
+             if msgs or (n == s["current_chat"] and s["pending_prompt"] is not None)][::-1]
+    if not names:
+        names = [next(iter(s["chat_sessions"]))]
+    return names
 
 def make_title(user_text, answer):
     """Ask a small model for a 2-5 word title (like Claude does). Returns None on failure."""
@@ -387,7 +689,8 @@ def make_title(user_text, answer):
     convo = f"User: {user_text[:500]}\n\nAssistant: {answer[:500]}"
     for model, tokens in (("llama-3.1-8b-instant", 24), ("openai/gpt-oss-120b", 400)):
         try:
-            r = ChatGroq(model=model, temperature=0.2, max_tokens=tokens).invoke(
+            r = ChatGroq(model=model, temperature=0.2, max_tokens=tokens,
+                         api_key=st.session_state["stored_groq_key"]).invoke(
                 [("system", system), ("user", convo)])
             title = (r.content or "").strip().splitlines()[0].strip().strip("\"'“”‘’*#").rstrip(".").strip()
             if title:
@@ -417,6 +720,18 @@ def build_system_prompt():
             t = file_to_text(f, 4000)
             if t:
                 base += f"\n\n--- Project file: {f['name']} ---\n{t}"
+    style = st.session_state.get("response_style", "Balanced")
+    style_guidance = {
+        "Concise": "Keep responses concise and focused.",
+        "Detailed": "Provide thorough explanations with useful context.",
+        "Step by step": "Explain processes in clear, ordered steps.",
+        "Balanced": "Use a balanced level of detail.",
+    }.get(style, "")
+    if style_guidance:
+        base += "\n\nResponse style: " + style_guidance
+    custom = st.session_state.get("custom_instructions", "").strip()
+    if custom:
+        base += "\n\nAdditional user instructions: " + custom
     return base
 
 # ---------------- CALLBACKS ----------------
@@ -431,6 +746,27 @@ def start_screenshot():
 
 def set_menu_view(view):
     st.session_state["menu_view"] = view
+
+def set_acct_view(view):
+    st.session_state["acct_view"] = view
+
+def open_settings():
+    st.session_state["open_settings"] = True
+    st.session_state["settings_open"] = True
+    st.session_state["settings_section"] = "Account"
+    st.session_state["acct_view"] = "main"
+
+def logout():
+    st.session_state["stored_groq_key"] = ""
+    st.session_state["acct_view"] = "main"
+    st.session_state["toast"] = "Logged out."
+
+def on_mode_change():
+    val = st.session_state.get("mode_sel")
+    if val != "Chat":
+        if val == "Cowork":
+            st.session_state["toast"] = "Cowork is not available yet."
+        st.session_state["mode_sel"] = "Chat"
 
 def toggle_web_search():
     st.session_state["web_search"] = not st.session_state["web_search"]
@@ -503,6 +839,301 @@ def transcribe_audio():
     except Exception as e:
         st.session_state["toast"] = f"Voice input failed: {e}"
 
+# ---- callbacks for the pages from the video ----
+def go_page(name):
+    st.session_state["page"] = name
+
+def go_chat(prefill=None):
+    """Open the chat screen (re-using the current chat if it is still empty)."""
+    s = st.session_state
+    if s["chat_sessions"][s["current_chat"]]:
+        new_title = f"Chat {len(s['chat_sessions']) + 1}"
+        s["chat_sessions"][new_title] = []
+        s["current_chat"] = new_title
+    s["page"] = "chat"
+    s["show_workspace"] = False
+    if prefill:
+        s["msg_box"] = prefill
+
+def open_newproject():
+    st.session_state["open_newproj"] = True
+
+def go_projects_and_new():
+    st.session_state["page"] = "projects"
+    st.session_state["open_newproj"] = True
+
+def toggle_proj_sort():
+    st.session_state["proj_sort"] = "name" if st.session_state["proj_sort"] == "recent" else "recent"
+
+def open_project(name):
+    link_chat_to_project(name)
+    st.session_state["page"] = "chat"
+    st.session_state["toast"] = f"This chat is now linked to project '{name}'."
+
+def open_artifact(idx):
+    items = st.session_state["artifact_items"]
+    if 0 <= idx < len(items):
+        st.session_state["workspace_content"] = items[idx]["content"]
+        st.session_state["show_workspace"] = True
+        st.session_state["page"] = "chat"
+
+# ---------------- SETTINGS DIALOG (account menu entry; full Claude-style layout) ----------------
+@st.dialog("Settings", width="large")
+def settings_dialog():
+    sections = ["Account", "Billing", "Appearance", "Your Chandlio", "Capabilities",
+                "Notifications", "Privacy", "Wellbeing", "Customize", "Code"]
+    st.markdown("""
+    <style>
+    [data-testid="stDialog"]:has(.st-key-settings_shell) [role="dialog"] {
+        width: min(1600px, 86vw) !important; max-width: 92vw !important;
+        max-height: 90vh !important; background: #202020 !important;
+        border: 1px solid #383838 !important; border-radius: 14px !important;
+        padding: 0 !important; overflow: hidden !important;
+    }
+    [data-testid="stDialog"]:has(.st-key-settings_shell) [data-testid="stVerticalBlock"] { gap: .45rem !important; }
+    [data-testid="stDialog"]:has(.st-key-settings_shell) [data-testid="stDialogHeader"] {
+        background: #202020 !important; padding: 0 !important; min-height: 0 !important;
+    }
+    [data-testid="stDialog"]:has(.st-key-settings_shell) [data-testid="stDialogHeader"] h2 { display:none !important; }
+    [data-testid="stDialog"]:has(.st-key-settings_shell) button[aria-label="Close"] { display:none !important; }
+    .st-key-settings_close button { background:transparent !important; border:0 !important; color:#eee !important;
+        font-size:1.35rem !important; min-height:1.8rem !important; padding:0 .35rem !important; }
+    .st-key-settings_shell { padding: 0 22px 20px 22px; }
+    .st-key-settings_title { padding: 13px 0 10px 0; border-bottom: 1px solid #343434; margin-bottom: 10px; }
+    .st-key-settings_title h3 { font-size: 1.05rem !important; font-weight: 600 !important; margin: 0 !important; color:#f4f4f4 !important; }
+    .st-key-settings_nav { border-right: 1px solid #343434; padding-right: 16px; min-height: 72vh; }
+    .st-key-settings_nav button { width:100%; justify-content:flex-start !important; text-align:left !important;
+        background:transparent !important; border:0 !important; color:#d5d5d5 !important;
+        border-radius:8px !important; min-height:2.1rem !important; padding:.38rem .65rem !important; }
+    .st-key-settings_nav button:hover { background:#2d2d2d !important; }
+    .st-key-settings_nav [data-testid="stBaseButton-primary"] { background:#3a3a3a !important; color:#fff !important; }
+    .st-key-settings_content { padding: 4px 14px 22px 10px; max-height: 76vh; overflow-y:auto; }
+    .st-key-settings_content h3 { font-size:1.15rem !important; margin:.35rem 0 1rem !important; }
+    [data-testid="stDialog"]:has(.st-key-settings_shell) input,
+    [data-testid="stDialog"]:has(.st-key-settings_shell) textarea,
+    [data-testid="stDialog"]:has(.st-key-settings_shell) [data-baseweb="select"] > div {
+        background:#292929 !important; border:1px solid #414141 !important; color:#f2f2f2 !important;
+    }
+    [data-testid="stDialog"]:has(.st-key-settings_shell) label,
+    [data-testid="stDialog"]:has(.st-key-settings_shell) p { color:#dedede; }
+    .settings-muted { color:#9c9c9c; font-size:.88rem; }
+    </style>
+    """, unsafe_allow_html=True)
+
+    with st.container(key="settings_shell"):
+        title_col, close_col = st.columns([12, 1])
+        with title_col:
+            st.markdown("<div class='st-key-settings_title'><h3>Settings</h3></div>", unsafe_allow_html=True)
+        with close_col:
+            with st.container(key="settings_close"):
+                if st.button("×", key="settings_close_button", help="Close settings"):
+                    st.session_state["settings_open"] = False
+                    st.rerun()
+        nav_col, content_col = st.columns([0.88, 2.55], gap="large")
+        with nav_col:
+            with st.container(key="settings_nav"):
+                st.text_input("Search", key="settings_search", placeholder="Search settings…", label_visibility="collapsed")
+                q = st.session_state.get("settings_search", "").strip().lower()
+                shown = [x for x in sections if not q or q in x.lower()]
+                for section in shown:
+                    if st.button(section, key="settings_section_" + section,
+                                  type="primary" if st.session_state.get("settings_section") == section else "secondary",
+                                  use_container_width=True):
+                        st.session_state["settings_section"] = section
+                        st.rerun()
+        with content_col:
+            with st.container(key="settings_content"):
+                section = st.session_state.get("settings_section", "Account")
+                st.subheader(section)
+                if section == "Account":
+                    st.caption("Profile")
+                    c1, c2 = st.columns([1, 4])
+                    with c1:
+                        st.markdown("<div style='width:58px;height:58px;border-radius:50%;background:#414141;display:flex;align-items:center;justify-content:center;font-size:24px;color:#eee'>C</div>", unsafe_allow_html=True)
+                    with c2:
+                        st.caption("Profile photo")
+                        st.caption("PNG, JPEG, or WebP up to 10MB.")
+                    st.text_input("Full name", key="profile_full_name")
+                    st.text_input("What should Chandlio call you?", key="profile_call_name")
+                    st.selectbox("What best describes your work?", ["Other", "Student", "Developer", "Researcher", "Business owner", "Designer"], key="profile_work")
+                    st.text_input("Email", value=ACCOUNT_EMAIL, disabled=True)
+                    st.caption("Profile and sign-in synchronization are not connected in this local app version.")
+                    st.divider()
+                    st.markdown("**Where you're logged in**")
+                    st.caption("This browser session · Current device")
+                elif section == "Billing":
+                    st.markdown("**Chandlio · Free**")
+                    st.write("Your current workspace plan")
+                    st.info("Billing, subscriptions and payment management are not connected in this version.")
+                elif section == "Appearance":
+                    st.caption("Choose how Chandlio looks. Your workspace layout stays the same.")
+                    st.markdown("**Current theme**")
+                    st.markdown("<div style='display:inline-flex;align-items:center;gap:10px;background:#292929;border:1px solid #414141;border-radius:10px;padding:10px 14px'><span style='width:13px;height:13px;border-radius:50%;background:#d97757;display:inline-block'></span><span>Midnight Ember</span></div>", unsafe_allow_html=True)
+                    st.caption("Midnight Ember is the active default theme.")
+                elif section == "Your Chandlio":
+                    st.caption("Set instructions that guide Chandlio's responses.")
+                    st.text_area("Custom instructions", key="custom_instructions", height=160,
+                                 placeholder="For example: explain things step by step and keep answers concise.")
+                    st.caption("These instructions are applied to new responses in this session.")
+                elif section == "Capabilities":
+                    st.toggle("Web search", key="web_search", help="Use the existing web-search setting in this app.")
+                    st.caption("Other connected apps and integrations are not configured yet.")
+                elif section == "Notifications":
+                    st.toggle("In-app notifications", key="notifications_enabled")
+                    st.caption("Browser push notifications are not configured in this version.")
+                elif section == "Privacy":
+                    st.markdown("**Your data**")
+                    st.write("Chats and preferences are held in the current Streamlit session. Persistent account storage, export and deletion workflows are not connected yet.")
+                elif section == "Wellbeing":
+                    st.toggle("Reduce interface motion", key="reduce_motion")
+                    st.caption("The current interface uses minimal animation.")
+                elif section == "Customize":
+                    st.caption("Choose how Chandlio responds.")
+                    st.selectbox("Response style", ["Balanced", "Concise", "Detailed", "Step by step"], key="response_style")
+                    st.caption("This preference is applied to new responses.")
+                elif section == "Code":
+                    st.markdown("**Model connection**")
+                    st.caption("Provider: Groq · Model: openai/gpt-oss-120b")
+                    new_key = st.text_input("Groq API Key", value=st.session_state["stored_groq_key"],
+                                            type="password", placeholder="gsk_...")
+                    st.caption("Your key is kept only for this Streamlit session.")
+                    if st.button("Save API key", key="save_settings", type="primary"):
+                        if new_key.strip():
+                            st.session_state["stored_groq_key"] = new_key.strip()
+                            st.session_state["toast"] = "Settings saved."
+                            st.rerun()
+                        else:
+                            st.error("Please paste your Groq API key.")
+
+# ---------------- CREATE A PROJECT DIALOG (from the video) ----------------
+@st.dialog("Create a project")
+def newproject_dialog():
+    with st.container(key="np_wrap"):
+        name = st.text_input("What are you working on?", key="np_name", placeholder="Name your project")
+        desc = st.text_area("What are you trying to achieve?", key="np_desc", height=90,
+                            placeholder="Describe your project, goals, subject, etc...")
+        _gap, b1, b2 = st.columns([5, 1.4, 2.2])
+        with b1:
+            with st.container(key="np_cancel"):
+                cancel = st.button("Cancel", key="np_cancel_btn", use_container_width=True)
+        with b2:
+            with st.container(key="np_create"):
+                create = st.button("Create project", key="np_create_btn", use_container_width=True)
+        if cancel:
+            st.rerun()
+        if create:
+            nm = (name or "").strip()
+            if not nm:
+                st.error("Please enter a project name.")
+            elif nm in st.session_state["projects"]:
+                st.error("A project with that name already exists.")
+            else:
+                st.session_state["projects"][nm] = {"description": (desc or "").strip(), "files": []}
+                st.session_state["toast"] = f"Project '{nm}' created."
+                st.rerun()
+
+# ---------------- SEARCH POPUP ----------------
+SEARCH_TABS = ["All", "Artifacts", "Chats", "Projects", "Sessions", "Tasks", "Scheduled"]
+
+def _search_all():
+    st.session_state["search_tab"] = "All"
+
+def _search_row(label, icon, key):
+    return st.button(label, icon=icon, key=key, use_container_width=True)
+
+@st.dialog("Search", width="large")
+def search_dialog():
+    with st.container(key="srch_head"):
+        q = st.text_input("Search", key="search_q", placeholder="Search", label_visibility="collapsed")
+    with st.container(key="srch_tabs"):
+        if hasattr(st, "segmented_control"):
+            st.segmented_control("Type", SEARCH_TABS, key="search_tab", label_visibility="collapsed")
+        else:
+            st.radio("Type", SEARCH_TABS, key="search_tab", horizontal=True, label_visibility="collapsed")
+    tab = st.session_state.get("search_tab") or "All"
+    ql = (q or "").strip().lower()
+
+    sessions = st.session_state["chat_sessions"]
+    chat_hits = [n for n in listed_chats() if
+                 (not ql or ql in chat_title(n).lower() or any(ql in m["content"].lower() for m in sessions[n]))]
+    proj_hits = [p for p in st.session_state["projects"] if not ql or ql in p.lower()]
+    art_hits = [(i, a) for i, a in enumerate(st.session_state["artifact_items"])
+                if not ql or ql in a["title"].lower() or ql in a["content"].lower()][::-1]
+
+    chat_rows = tab in ("All", "Chats") and bool(chat_hits)
+    # first row is highlighted (that is what Enter opens); when there are no chats, "New chat" is highlighted
+    hl_css = ("<style>.st-key-srch_first button { background: #4a4a4a !important; }"
+              ".st-key-srch_first button::after { content: \"\\22EF   \\21B5\"; margin-left: auto; color: #cfcfcf; letter-spacing: .08em; white-space: nowrap; }</style>"
+              if chat_rows else
+              "<style>.st-key-srch_newchat button { background: #4a4a4a !important; }"
+              ".st-key-srch_newchat button::after { content: \"\\21B5\"; margin-left: auto; color: #cfcfcf; font-size: 1.4rem; line-height: 1; }</style>")
+    body_css = "<style>.st-key-srch_body { min-height: 420px; }</style>" if tab == "All" else ""
+    st.markdown(hl_css + body_css, unsafe_allow_html=True)
+
+    with st.container(key="srch_body"):
+        shown = False
+
+        if tab in ("All", "Chats") and chat_hits:
+            if tab == "All":
+                st.markdown(f"<div class='srch-label'>{'Recents' if not ql else 'Chats'}</div>", unsafe_allow_html=True)
+            for idx, n in enumerate(chat_hits[:20]):
+                if idx == 0:
+                    with st.container(key="srch_first"):
+                        clicked = _search_row(chat_title(n), ":material/chat_bubble_outline:", f"srch_row_chat_{n}")
+                else:
+                    clicked = _search_row(chat_title(n), ":material/chat_bubble_outline:", f"srch_row_chat_{n}")
+                if clicked:
+                    st.session_state["current_chat"] = n
+                    st.session_state["page"] = "chat"
+                    st.session_state["scroll_bottom"] = True
+                    st.rerun()
+            shown = True
+
+        if tab in ("All", "Projects") and proj_hits:
+            if tab == "All":
+                st.markdown("<div class='srch-label' style='padding-top:14px'>Projects</div>", unsafe_allow_html=True)
+            for p in proj_hits:
+                if _search_row(p, ":material/folder:", f"srch_row_proj_{p}"):
+                    link_chat_to_project(p)
+                    st.session_state["page"] = "projects"
+                    st.rerun()
+            shown = True
+
+        if tab in ("All", "Artifacts") and art_hits:
+            if tab == "All":
+                st.markdown("<div class='srch-label' style='padding-top:14px'>Artifacts</div>", unsafe_allow_html=True)
+            for i, a in art_hits[:10]:
+                if _search_row(a["title"], ":material/filter_none:", f"srch_row_artifact_{i}"):
+                    open_artifact(i)
+                    st.rerun()
+            shown = True
+
+        if tab == "All" and not ql:
+            st.markdown("<div class='srch-label' style='padding-top:14px'>Actions</div>", unsafe_allow_html=True)
+            if st.button("New chat", icon=":material/add_comment:", key="srch_newchat", use_container_width=True):
+                new_title = f"Chat {len(sessions) + 1}"
+                sessions[new_title] = []
+                st.session_state["current_chat"] = new_title
+                st.session_state["page"] = "chat"
+                st.session_state["show_workspace"] = False
+                st.rerun()
+            shown = True
+
+        if not shown:
+            st.markdown(f"<div class='srch-empty'>No results in {_html.escape(tab)}</div>", unsafe_allow_html=True)
+            if tab != "All":
+                with st.container(key="srch_all"):
+                    st.button("Search all", key="srch_all_btn", on_click=_search_all)
+
+    actions_item = "<span class='it'>Actions <kbd>Alt</kbd><kbd>↵</kbd></span>" if chat_rows else ""
+    st.markdown(
+        "<div class='srch-foot'><div class='grp'>"
+        "<span class='it'>Close <kbd>Esc</kbd></span>"
+        "<span class='it'>Change type <kbd>←</kbd><kbd>→</kbd></span>"
+        "<span class='it'>Filters <kbd>/</kbd></span>" + actions_item + "</div>"
+        "<span class='it'>Compose <kbd>Tab</kbd></span></div>",
+        unsafe_allow_html=True)
+
 # ---------------- CLAUDE-STYLE SIDEBAR ----------------
 FILTER_SVG = ('<svg width="18" height="18" viewBox="0 0 24 24"><line x1="4" y1="7" x2="20" y2="7"/>'
               '<line x1="7" y1="12" x2="17" y2="12"/><line x1="10" y1="17" x2="14" y2="17"/></svg>')
@@ -510,34 +1141,34 @@ FILTER_SVG = ('<svg width="18" height="18" viewBox="0 0 24 24"><line x1="4" y1="
 with st.sidebar:
     st.markdown("<div class='brand'>Chandlio</div>", unsafe_allow_html=True)
 
-    if st.button("New", icon=":material/add:", use_container_width=True, key="nav_new"):
+    _cur_empty = not st.session_state["chat_sessions"][st.session_state["current_chat"]] \
+        and st.session_state["pending_prompt"] is None
+    if st.button("New", icon=":material/add:", use_container_width=True, key="nav_new",
+                 type="primary" if (_page == "chat" and _cur_empty) else "secondary"):
         new_title = f"Chat {len(st.session_state['chat_sessions']) + 1}"
         st.session_state["chat_sessions"][new_title] = []
         st.session_state["current_chat"] = new_title
+        st.session_state["page"] = "chat"
         st.session_state["show_workspace"] = False
         st.rerun()
 
-    st.button("Search", icon=":material/search:", use_container_width=True, key="nav_search",
-              on_click=toggle_state, args=("show_search",))
+    if st.button("Search", icon=":material/search:", use_container_width=True, key="nav_search"):
+        st.session_state["search_q"] = ""
+        st.session_state["search_tab"] = "All"
+        search_dialog()
     search_q = ""
-    if st.session_state["show_search"]:
-        search_q = st.text_input("Search chats", key="search_q", placeholder="Search chats...",
-                                 label_visibility="collapsed").strip().lower()
 
-    st.button("Projects", icon=":material/inventory_2:", use_container_width=True, key="nav_projects",
-              on_click=toggle_state, args=("show_projects",))
-    if st.session_state["show_projects"]:
-        st.button("New project", icon=":material/create_new_folder:", use_container_width=True,
-                  key="side_new_project", on_click=set_panel, args=("newproject",))
-        active_proj = st.session_state["chat_project"].get(st.session_state["current_chat"])
-        for pname, pdata in st.session_state["projects"].items():
-            st.button(f"{pname} ({len(pdata['files'])})", use_container_width=True, key=f"proj_{pname}",
-                      icon=":material/check_circle:" if pname == active_proj else ":material/folder:",
-                      on_click=link_chat_to_project, args=(pname,))
+    # Projects row: opens the Projects page; a + shows on hover (always while on that page) to create a project
+    if _page == "projects":
+        st.markdown("<style>.st-key-proj_plus { opacity: 1 !important; }</style>", unsafe_allow_html=True)
+    with st.container(key="proj_row"):
+        st.button("Projects", icon=":material/inventory_2:", use_container_width=True, key="nav_projects",
+                  on_click=go_page, args=("projects",), type="primary" if _page == "projects" else "secondary")
+        with st.container(key="proj_plus"):
+            st.button(" ", icon=":material/add:", key="nav_projects_plus", on_click=go_projects_and_new)
 
-    if st.button("Artifacts", icon=":material/filter_none:", use_container_width=True, key="nav_artifacts"):
-        st.session_state["show_workspace"] = True
-        st.rerun()
+    st.button("Artifacts", icon=":material/filter_none:", use_container_width=True, key="nav_artifacts",
+              on_click=go_page, args=("artifacts",), type="primary" if _page == "artifacts" else "secondary")
 
     st.button("Code", icon=":material/code:", use_container_width=True, key="nav_code",
               on_click=soon, args=("Code is not available yet.",))
@@ -547,196 +1178,131 @@ with st.sidebar:
     st.markdown(f"<div class='side-head'><span>Chats and tasks &#9662;</span>{FILTER_SVG}</div>",
                 unsafe_allow_html=True)
 
-    names = list(st.session_state["chat_sessions"].keys())[::-1]
+    names = listed_chats()
     if search_q:
         names = [n for n in names if search_q in chat_title(n).lower()]
     limit = len(names) if (st.session_state["show_all_chats"] or search_q) else 8
     for chat_name in names[:limit]:
-        is_active = chat_name == st.session_state["current_chat"]
+        _has_content = bool(st.session_state["chat_sessions"][chat_name]) or \
+            (chat_name == st.session_state["current_chat"] and st.session_state["pending_prompt"] is not None)
+        is_active = chat_name == st.session_state["current_chat"] and _page == "chat" and _has_content
         if st.button(chat_title(chat_name), use_container_width=True, key=f"btn_{chat_name}",
                      type="primary" if is_active else "secondary"):
             st.session_state["current_chat"] = chat_name
+            st.session_state["page"] = "chat"
             st.session_state["scroll_bottom"] = True
             st.rerun()
-    if len(names) > 8 and not search_q:
+    if not search_q:
         st.button("Show less" if st.session_state["show_all_chats"] else "View all", key="view_all",
                   use_container_width=True, on_click=toggle_state, args=("show_all_chats",))
 
-    # Account area stays at the bottom of the navigation panel.
-    # Settings is opened from this account area, matching the supplied reference.
-    st.markdown("<div class='side-label'></div>", unsafe_allow_html=True)
-    with st.expander("Chandlio · Free", icon=":material/account_circle:",
-                     expanded=False):
-        st.caption("My account")
-        if st.button("Settings", icon=":material/settings:", use_container_width=True,
-                     key="open_chandlio_settings"):
-            st.session_state["show_settings"] = True
-            st.session_state["settings_section"] = "Account"
-            st.rerun()
-        st.divider()
-        st.caption("Model connection")
-        user_groq_key = st.text_input("Groq API Key", value=st.session_state["stored_groq_key"],
-                                      type="password", placeholder="gsk_...")
-        if user_groq_key:
-            st.session_state["stored_groq_key"] = user_groq_key
-            os.environ["GROQ_API_KEY"] = user_groq_key
+    # ---- account row, pinned to the bottom (avatar + name + plan, opens the account menu) ----
+    with st.container(key="account_wrap"):
+        a1, a2 = st.columns([6, 1], vertical_alignment="center")
+        with a1:
+            with st.container(key="side_account"):
+                with st.popover("Chandlio · :gray[Free]", use_container_width=True):
+                    if st.session_state["acct_view"] == "main":
+                        st.markdown(f"<div class='acct-email'>{_html.escape(ACCOUNT_EMAIL)}</div>",
+                                    unsafe_allow_html=True)
+                        st.button("Settings", icon=":material/settings:", key="acct_settings",
+                                  use_container_width=True, on_click=open_settings)
+                        st.button("Language", icon=":material/language:", key="acct_language",
+                                  use_container_width=True, on_click=soon,
+                                  args=("Language: only English is available for now.",))
+                        st.button("Get help", icon=":material/help:", key="acct_help",
+                                  use_container_width=True, on_click=soon,
+                                  args=("Help is not available yet.",))
+                        st.divider()
+                        st.button("Upgrade plan", icon=":material/arrow_circle_up:", key="acct_upgrade",
+                                  use_container_width=True, on_click=soon,
+                                  args=("Upgrade is not available yet.",))
+                        st.button("Get apps and extensions", icon=":material/devices:", key="acct_apps",
+                                  use_container_width=True, on_click=soon,
+                                  args=("Apps and extensions are not available yet.",))
+                        st.button("Learn more", icon=":material/info:", key="acct_learn",
+                                  use_container_width=True, on_click=set_acct_view, args=("learn",))
+                        st.divider()
+                        st.button("Log out", icon=":material/logout:", key="acct_logout",
+                                  use_container_width=True, on_click=logout)
+                    else:
+                        st.button("Back", icon=":material/arrow_back:", key="acct_back",
+                                  use_container_width=True, on_click=set_acct_view, args=("main",))
+                        st.caption("Chandlio is a personal project built with Streamlit and Groq.")
+        with a2:
+            st.button(" ", icon=":material/devices:", key="side_devices", use_container_width=True,
+                      on_click=soon, args=("Apps and extensions are not available yet.",))
 
-# ---------------- CHANDLIO SETTINGS (same app; settings overlay only) ----------------
-CHANDLIO_THEMES = {
-    "Midnight Ember": {"bg":"#191919","sidebar":"#1f1f1e","card":"#262626","input":"#2b2b2b","border":"#3d3d3d","text":"#ffffff","muted":"#a8a8a8","accent":"#d97757","hover":"#353535","user":"#262626"},
-    "Arctic Ocean": {"bg":"#0b1728","sidebar":"#101f33","card":"#172b43","input":"#1e3049","border":"#30445f","text":"#f1f5f9","muted":"#a8b8cc","accent":"#38bdf8","hover":"#263d58","user":"#203b59"},
-    "Royal Amethyst": {"bg":"#191326","sidebar":"#1d1830","card":"#291e3d","input":"#302544","border":"#49385f","text":"#f5f0ff","muted":"#b9add0","accent":"#a78bfa","hover":"#382a50","user":"#352746"},
-    "Cloud Cream": {"bg":"#f4f3ef","sidebar":"#ebe9e3","card":"#ffffff","input":"#ffffff","border":"#dedbd3","text":"#242424","muted":"#77736c","accent":"#c87555","hover":"#e8e5de","user":"#eee6dc"},
-    "Emerald Forest": {"bg":"#101d18","sidebar":"#14251e","card":"#1d3027","input":"#22392f","border":"#315747","text":"#ecfdf5","muted":"#a4c5b3","accent":"#34d399","hover":"#294238","user":"#244034"},
-    "Sunset Copper": {"bg":"#21150f","sidebar":"#2b1a11","card":"#382419","input":"#432a1c","border":"#61402b","text":"#fff1e6","muted":"#cbb09b","accent":"#f59e52","hover":"#4a3022","user":"#4a2e1e"},
-    "Cosmic Rose": {"bg":"#171722","sidebar":"#211b2b","card":"#28263a","input":"#38344d","border":"#4b465e","text":"#f4f0ff","muted":"#bcb1ca","accent":"#e879c6","hover":"#40364e","user":"#382b42"},
-    "Pure Monochrome": {"bg":"#080808","sidebar":"#111111","card":"#1d1d1d","input":"#252525","border":"#444444","text":"#ffffff","muted":"#aaaaaa","accent":"#e5e5e5","hover":"#303030","user":"#292929"},
-}
-
-# Midnight Ember is the default for new sessions; existing selection is retained.
-if st.session_state.get("theme_choice") not in CHANDLIO_THEMES:
-    st.session_state["theme_choice"] = "Midnight Ember"
-
-_theme = CHANDLIO_THEMES[st.session_state["theme_choice"]]
-st.markdown("""
-<style>
-:root {
- --ch-bg: __BG__; --ch-sidebar: __SIDEBAR__; --ch-card: __CARD__;
- --ch-input: __INPUT__; --ch-border: __BORDER__; --ch-text: __TEXT__;
- --ch-muted: __MUTED__; --ch-accent: __ACCENT__; --ch-hover: __HOVER__;
- --ch-user: __USER__;
- color-scheme: __SCHEME__;
-}
-.stApp,[data-testid="stAppViewContainer"],[data-testid="stMain"],
-[data-testid="stMainBlockContainer"] {background:var(--ch-bg)!important;color:var(--ch-text)!important;}
-[data-testid="stHeader"],.topbar {background:var(--ch-bg)!important;border-color:var(--ch-border)!important;}
-[data-testid="stSidebar"],[data-testid="stSidebarContent"] {background:var(--ch-sidebar)!important;border-color:var(--ch-border)!important;}
-[data-testid="stSidebar"] button {color:var(--ch-text)!important;}
-[data-testid="stSidebar"] button:hover {background:var(--ch-hover)!important;}
-[data-testid="stSidebar"] [data-testid="stBaseButton-primary"] {background:var(--ch-card)!important;}
-.stMarkdown,h1,h2,h3,h4,p,li,label,[data-testid="stMarkdownContainer"] {color:var(--ch-text);}
-.brand,.hero,.tb-title,.tb-right,.side-head {color:var(--ch-text)!important;}
-.side-label,.input-foot,.input-foot .dis {color:var(--ch-muted)!important;}
-.plan-pill,.st-key-chips button {background:var(--ch-card)!important;border-color:var(--ch-border)!important;color:var(--ch-text)!important;}
-[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarUser"]) {background:var(--ch-user)!important;border-color:var(--ch-border)!important;}
-[data-testid="stChatMessage"]:has([data-testid="stChatMessageAvatarAssistant"]) [data-testid="stMarkdownContainer"] {color:var(--ch-text)!important;}
-.st-key-pill,[data-testid="stPopoverBody"] {background:var(--ch-card)!important;border-color:var(--ch-border)!important;color:var(--ch-text)!important;}
-.st-key-inputbar,.st-key-inputbar .stTextArea,.st-key-inputbar [data-baseweb="textarea"] {background:var(--ch-bg)!important;}
-.st-key-inputbar .stTextArea textarea {color:var(--ch-text)!important;}
-.st-key-inputbar .stTextArea textarea::placeholder {color:var(--ch-muted)!important;}
-input,textarea,[data-baseweb="input"],[data-baseweb="select"]>div {background:var(--ch-input)!important;color:var(--ch-text)!important;border-color:var(--ch-border)!important;}
-button {border-color:var(--ch-border)!important;}
-a,.stMarkdown a {color:var(--ch-accent)!important;}
-[data-testid="stDialog"] [role="dialog"] {background:var(--ch-bg)!important;color:var(--ch-text)!important;border:1px solid var(--ch-border)!important;}
-[data-testid="stDialog"] [role="dialog"] [data-testid="stVerticalBlock"] {gap:.65rem;}
-[data-testid="stDialog"] [role="dialog"] h1,[data-testid="stDialog"] [role="dialog"] h2,[data-testid="stDialog"] [role="dialog"] h3 {color:var(--ch-text)!important;}
-[data-testid="stDialog"] [role="dialog"] button {color:var(--ch-text)!important;}
-</style>
-""".replace("__BG__",_theme["bg"]).replace("__SIDEBAR__",_theme["sidebar"])
-   .replace("__CARD__",_theme["card"]).replace("__INPUT__",_theme["input"])
-   .replace("__BORDER__",_theme["border"]).replace("__TEXT__",_theme["text"])
-   .replace("__MUTED__",_theme["muted"]).replace("__ACCENT__",_theme["accent"])
-   .replace("__HOVER__",_theme["hover"]).replace("__USER__",_theme["user"])
-   .replace("__SCHEME__", "light" if st.session_state["theme_choice"] == "Cloud Cream" else "dark"),
-   unsafe_allow_html=True)
-
-def render_chandlio_settings():
-    st.markdown("""
-    <style>
-      [data-testid="stMainBlockContainer"] {
-        max-width: 100% !important;
-        padding: 1.25rem 2rem 2rem !important;
-      }
-      .ch-settings-title {
-        font-size: 1.85rem; font-weight: 650; line-height: 1.2;
-        padding: .2rem 0 1.15rem; margin-bottom: 1.25rem;
-        border-bottom: 1px solid #3d3d3d;
-      }
-      .ch-settings-nav [data-testid="stButton"] button {
-        text-align: left; justify-content: flex-start;
-        border-radius: 10px; min-height: 2.75rem;
-      }
-    </style>
-    """, unsafe_allow_html=True)
-    title_col, close_col = st.columns([12, 1])
-    with title_col:
-        st.markdown("<div class='ch-settings-title'>Settings</div>", unsafe_allow_html=True)
-    with close_col:
-        if st.button("✕", key="close_chandlio_settings_top", help="Close settings"):
-            st.session_state["show_settings"] = False
-            st.rerun()
-
-    sections = ["Account", "Billing", "Appearance", "Your Chandlio", "Capabilities", "Notifications", "Privacy", "Wellbeing", "Customize", "Code"]
-    left, right = st.columns([1, 2.7], gap="large")
-    with left:
-        st.text_input("Search settings", key="settings_search", placeholder="Search settings…")
-        for section in sections:
-            if st.button(section, key="settings_nav_"+section, use_container_width=True,
-                         type="primary" if st.session_state["settings_section"] == section else "secondary"):
-                st.session_state["settings_section"] = section
-                st.rerun()
-    with right:
-        section = st.session_state["settings_section"]
-        st.subheader(section)
-        if section == "Account":
-            st.caption("Your Chandlio workspace account")
-            st.info("This version runs with the existing local Streamlit session. Account sign-in and cross-device account management are not connected yet.")
-            st.text_input("Workspace name", value="Chandlio", disabled=True)
-            st.caption("Account settings are shown here. Sign-in and profile synchronization are not connected in this version.")
-        elif section == "Billing":
-            st.caption("Chandlio plan")
-            st.markdown("**Chandlio · Free**")
-            st.write("You are using the existing free app configuration.")
-            st.info("Billing, subscriptions and payment management are not connected in this version.")
-        elif section == "Appearance":
-            st.caption("Choose how Chandlio looks. Your page layout and chat structure stay the same.")
-            st.selectbox("Colour theme", list(CHANDLIO_THEMES.keys()), key="theme_choice")
-            st.caption("Midnight Ember is the default theme.")
-            st.markdown("**Preview colours**")
-            preview = CHANDLIO_THEMES[st.session_state["theme_choice"]]
-            st.markdown("<div style='display:flex;gap:8px;align-items:center;padding:12px;background:{bg};border:1px solid {border};border-radius:12px'><span style='background:{sidebar};padding:12px;border-radius:8px;color:{text}'>Sidebar</span><span style='background:{card};padding:12px;border-radius:8px;color:{text}'>Chat panel</span><span style='background:{accent};padding:12px;border-radius:8px;color:#fff'>Accent</span></div>".format(bg=preview['bg'],border=preview['border'],sidebar=preview['sidebar'],card=preview['card'],text=preview['text'],accent=preview['accent']), unsafe_allow_html=True)
-        elif section == "Your Chandlio":
-            st.caption("Set instructions that guide Chandlio's responses in this session.")
-            st.text_area("Custom instructions", key="custom_instructions", height=150, placeholder="For example: explain things step by step and keep answers concise.")
-            st.caption("Instructions are kept in this Streamlit session; permanent account memory is not configured.")
-        elif section == "Capabilities":
-            st.toggle("Web search", key="web_search", help="Use the existing web-search setting in this app.")
-            st.caption("Other integrations and connected apps are not configured in this version.")
-        elif section == "Notifications":
-            st.toggle("Show in-app notifications", key="notifications_enabled")
-            st.caption("Controls app notification preference only; browser push notifications are not configured.")
-        elif section == "Privacy":
-            st.markdown("**Your data in this version**")
-            st.write("Chats and preferences are held in the current Streamlit session. Persistent encrypted account storage, export controls and deletion workflows are not connected yet.")
-            st.caption("Do not enter passwords, payment details or other sensitive information into this prototype.")
-        elif section == "Wellbeing":
-            st.toggle("Reduce interface motion", key="reduce_motion")
-            st.caption("This preference is saved for the current session. The current interface has minimal animation.")
-        elif section == "Customize":
-            st.caption("Personalize the assistant's response style.")
-            st.selectbox("Response style", ["Balanced", "Concise", "Detailed", "Step by step"], key="response_style", index=0)
-            st.caption("The selected style is a preference; custom prompt integration can be added without changing the app layout.")
-        elif section == "Code":
-            st.markdown("**Model connection**")
-            st.write("Provider: Groq")
-            st.write("Model: openai/gpt-oss-120b")
-            st.caption("The existing model and API connection are unchanged.")
-    st.divider()
-    st.caption("Chandlio settings")
-
-if st.session_state.get("show_settings"):
-    render_chandlio_settings()
-    st.stop()
+    # open the Settings dialog (from the menu, Ctrl+Shift+, or automatically when no key is set yet)
+    _want_settings = st.session_state.pop("open_settings", False)
+    _want_newproj = st.session_state.pop("open_newproj", False)
+    if _want_settings:
+        st.session_state["settings_open"] = True
+    if not st.session_state["stored_groq_key"] and not st.session_state["auto_settings_done"]:
+        st.session_state["auto_settings_done"] = True
+        st.session_state["settings_open"] = True
+    if st.session_state.get("settings_open"):
+        settings_dialog()
+    elif _want_newproj:
+        newproject_dialog()
 
 # ---------------- JAVASCRIPT (shortcuts, top-bar offset, auto-grow, auto-scroll) ----------------
 KEYS_AND_SCROLL_JS = """
 (function () {
   var P = window.parent, doc = P.document;
 
-  /* Enter = send, Shift+Enter = new line, Ctrl+U = upload */
+  /* ---- Search popup helpers ---- */
+  function srchHead() { return doc.querySelector('[data-testid="stDialog"] .st-key-srch_head'); }
+  function srchInput() { var h = srchHead(); return h ? h.querySelector('input') : null; }
+  function srchTab(dir) {
+    var dlg = doc.querySelector('[data-testid="stDialog"]');
+    if (!dlg) return;
+    var btns = Array.prototype.slice.call(dlg.querySelectorAll('.st-key-srch_tabs button'));
+    if (!btns.length) return;
+    var cur = 0;
+    btns.forEach(function (b, i) {
+      var tid = b.getAttribute('data-testid') || '';
+      if (b.getAttribute('aria-pressed') === 'true' || b.getAttribute('aria-checked') === 'true' || /Active$/.test(tid)) { cur = i; }
+    });
+    var n = Math.max(0, Math.min(btns.length - 1, cur + dir));
+    if (n !== cur) { btns[n].click(); }
+    P.setTimeout(function () { var i = srchInput(); if (i) i.focus(); }, 400);
+  }
+
+  /* Enter = send, Shift+Enter = new line, Ctrl+U = upload, Ctrl+Shift+, = settings, Ctrl+Shift+O = new chat,
+     and inside the search popup: arrows = change type, / = focus search, Tab = compose, Enter = open the highlighted row */
   if (P.__chandlioKeys) { doc.removeEventListener("keydown", P.__chandlioKeys, true); }
   P.__chandlioKeys = function (e) {
     var t = e.target;
+
+    if (srchHead()) {
+      var inp = srchInput();
+      var inInput = (t === inp);
+      if (e.key === "ArrowLeft" && (!inInput || (inp.selectionStart === 0 && inp.selectionEnd === 0))) {
+        e.preventDefault(); e.stopPropagation(); srchTab(-1); return;
+      }
+      if (e.key === "ArrowRight" && (!inInput || (inp.selectionStart === inp.value.length && inp.selectionEnd === inp.value.length))) {
+        e.preventDefault(); e.stopPropagation(); srchTab(1); return;
+      }
+      if (e.key === "/" && (!inInput || !inp.value)) {
+        e.preventDefault(); e.stopPropagation(); if (inp) inp.focus(); return;
+      }
+      if (e.key === "Tab" && !e.shiftKey) {
+        e.preventDefault(); e.stopPropagation();
+        var x = doc.querySelector('[data-testid="stDialog"] button[aria-label="Close"]');
+        if (x) x.click();
+        P.setTimeout(function () {
+          var ta = doc.querySelector(".st-key-inputbar textarea");
+          if (ta) ta.focus();
+        }, 400);
+        return;
+      }
+      if (e.key === "Enter" && inInput && !inp.value.trim()) {
+        var nb = doc.querySelector(".st-key-srch_first button") || doc.querySelector(".st-key-srch_newchat button");
+        if (nb) { e.preventDefault(); e.stopPropagation(); nb.click(); return; }
+      }
+    }
+
     if (e.key === "Enter" && !e.shiftKey && !e.isComposing && t && t.tagName === "TEXTAREA"
         && t.closest(".st-key-inputbar")) {
       e.preventDefault(); e.stopPropagation();
@@ -746,20 +1312,40 @@ KEYS_AND_SCROLL_JS = """
         if (b) b.click();
       }, 150);
     }
-    if ((e.ctrlKey || e.metaKey) && (e.key === "u" || e.key === "U")) {
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === "u" || e.key === "U")) {
       e.preventDefault();
       var h = doc.querySelector(".st-key-hidden_upload button");
       if (h) h.click();
     }
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "," || e.key === "<")) {
+      e.preventDefault();
+      var s = doc.querySelector(".st-key-hidden_settings button");
+      if (s) s.click();
+    }
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === "o" || e.key === "O")) {
+      e.preventDefault();
+      var nn = doc.querySelector(".st-key-nav_new button");
+      if (nn) nn.click();
+    }
   };
   doc.addEventListener("keydown", P.__chandlioKeys, true);
+
+  /* Put the cursor in the search box as soon as the popup opens */
+  if (P.__chandlioDlg) { P.clearInterval(P.__chandlioDlg); }
+  P.__chandlioDlgOpen = false;
+  P.__chandlioDlg = P.setInterval(function () {
+    var i = srchInput();
+    if (i && !P.__chandlioDlgOpen) { P.__chandlioDlgOpen = true; i.focus(); }
+    if (!i) { P.__chandlioDlgOpen = false; }
+  }, 200);
 
   /* Keep the top bar starting exactly where the sidebar ends (so the chat title is never hidden) */
   function setSbw() {
     var sb = doc.querySelector('[data-testid="stSidebar"]');
     var w = 0;
     if (sb) { w = Math.round(sb.getBoundingClientRect().right); }
-    if (w < 8) { w = 56; }                       /* sidebar collapsed: leave room for the expand button */
+    if (w < 8) { w = 56; doc.documentElement.setAttribute("data-sbcollapsed", "1"); }   /* collapsed: leave room for the expand button */
+    else { doc.documentElement.removeAttribute("data-sbcollapsed"); }
     doc.documentElement.style.setProperty("--sbw", w + "px");
   }
   setSbw();
@@ -818,6 +1404,7 @@ def run_js(js_code):
 # ---------------- INPUT BAR ----------------
 def render_input_bar():
     st.button("hidden upload", key="hidden_upload", on_click=set_panel, args=("upload",))
+    st.button("hidden settings", key="hidden_settings", on_click=open_settings)
     run_js(KEYS_AND_SCROLL_JS)
 
     has_msgs = bool(st.session_state["chat_sessions"][st.session_state["current_chat"]])
@@ -863,8 +1450,13 @@ def render_input_bar():
             for i, a in enumerate(st.session_state["attachments"]):
                 st.button(f"📎 {a['name']}  ✕", key=f"rm_{i}", on_click=remove_attachment, args=(i,))
 
-            # One compact row, like Claude:  +  |  message  |  mic  |  send
-            c_plus, c_text, c_mic, c_send = st.columns([0.7, 8.6, 0.8, 0.8], vertical_alignment="bottom")
+            # Row 1: the message box
+            st.text_area("Message", key="msg_box", placeholder="How can I help you today?",
+                         height=68, label_visibility="collapsed")
+
+            # Row 2:  +  |  Chat / Cowork  |  ........  |  model  |  mic  |  send
+            c_plus, c_mode, c_gap, c_model, c_mic, c_send = st.columns(
+                [0.7, 2.6, 2.6, 2.6, 0.9, 0.8], vertical_alignment="center")
 
             with c_plus:
                 with st.container(key="plus_wrap"):
@@ -908,9 +1500,17 @@ def render_input_bar():
                             }
                             st.caption(notes.get(view, ""))
 
-            with c_text:
-                st.text_area("Message", key="msg_box", placeholder="How can I help you today?",
-                             height=68, label_visibility="collapsed")
+            with c_mode:
+                with st.container(key="mode_wrap"):
+                    if hasattr(st, "segmented_control"):
+                        st.segmented_control("Mode", ["Chat", "Cowork"], default="Chat", key="mode_sel",
+                                             on_change=on_mode_change, label_visibility="collapsed")
+                    else:
+                        st.radio("Mode", ["Chat", "Cowork"], key="mode_sel", horizontal=True,
+                                 on_change=on_mode_change, label_visibility="collapsed")
+
+            with c_model:
+                st.markdown(f"<div class='mdl-in'>{MODEL_LABEL}<b>{MODEL_NOTE}</b></div>", unsafe_allow_html=True)
 
             with c_mic:
                 with st.container(key="mic_wrap"):
@@ -929,9 +1529,8 @@ def render_input_bar():
 
         if has_msgs or st.session_state["pending_prompt"] is not None:
             st.markdown(
-                f"<div class='input-foot'><span class='dis'>Chandlio is AI and can make mistakes. "
-                f"Please double-check responses.</span>"
-                f"<span class='mdl'>{MODEL_LABEL}<b>{MODEL_NOTE}</b></span></div>",
+                "<div class='input-foot'><span class='dis'>Chandlio is AI and can make mistakes. "
+                "Please double-check responses.</span></div>",
                 unsafe_allow_html=True)
 
 def render_starter_chips():
@@ -946,6 +1545,152 @@ def render_starter_chips():
             with col:
                 st.button(label, icon=icon, key=f"chip_{label}", on_click=set_starter, args=(text,))
 
+# ---------------- PROJECTS PAGE (from the video) ----------------
+_PROJECTS_EMPTY_SVG = ('<svg width="60" height="60" viewBox="0 0 64 64"><rect x="6" y="8" width="20" height="20" rx="1"/>'
+                       '<rect x="30" y="8" width="20" height="20" rx="1"/><rect x="6" y="32" width="20" height="20" rx="1"/>'
+                       '<rect x="30" y="30" width="22" height="22" rx="2" fill="#3a3a3a"/>'
+                       '<path d="M44 58V44a3 3 0 0 1 6 0v6l4-1.5a3 3 0 0 1 3 4.5l-4 6"/></svg>')
+
+def render_projects_page():
+    with st.container(key="pj_head"):
+        c1, c2, c3, c4 = st.columns([8, 0.7, 0.7, 2], vertical_alignment="center")
+        with c1:
+            st.markdown("<div class='pg-title'>Projects</div>", unsafe_allow_html=True)
+        with c2:
+            st.button(" ", icon=":material/search:", key="pj_search_btn", on_click=toggle_state, args=("proj_search_on",))
+        with c3:
+            st.button(" ", icon=":material/swap_vert:", key="pj_sort_btn", on_click=toggle_proj_sort)
+        with c4:
+            with st.container(key="pj_new"):
+                st.button("New project", key="pj_new_btn", on_click=open_newproject)
+
+    pq = ""
+    if st.session_state["proj_search_on"]:
+        pq = (st.text_input("Search projects", key="proj_q", placeholder="Search projects",
+                            label_visibility="collapsed") or "").strip().lower()
+
+    items = [(n, p) for n, p in st.session_state["projects"].items()
+             if not pq or pq in n.lower() or pq in p["description"].lower()]
+    if st.session_state["proj_sort"] == "recent":
+        items = items[::-1]
+    else:
+        items = sorted(items, key=lambda x: x[0].lower())
+
+    if not st.session_state["projects"]:
+        st.markdown(
+            f"<div class='pg-empty'>{_PROJECTS_EMPTY_SVG}<div class='t1'>Looking to start a project?</div>"
+            "<div class='t2'>Upload materials, set custom instructions, and organize conversations in one space.</div></div>",
+            unsafe_allow_html=True)
+        with st.container(key="pj_empty"):
+            st.button("New project", key="pj_empty_btn", on_click=open_newproject)
+    elif not items:
+        st.markdown("<div class='pg-empty'><div class='t1'>No projects match your search.</div></div>",
+                    unsafe_allow_html=True)
+    else:
+        with st.container(key="pj_cards"):
+            cols = st.columns(2, gap="medium")
+            for i, (name, p) in enumerate(items):
+                with cols[i % 2]:
+                    with st.container(key=f"pcard_{i}"):
+                        desc = _html.escape(p["description"]) if p["description"] else "No description"
+                        nfiles = len(p["files"])
+                        st.markdown(
+                            f"<div class='pcard'><div class='pc-title'>{_html.escape(name)}</div>"
+                            f"<div class='pc-desc'>{desc}</div>"
+                            f"<div class='pc-meta'>{nfiles} file{'s' if nfiles != 1 else ''}</div></div>",
+                            unsafe_allow_html=True)
+                        st.button(" ", key=f"pbtn_{i}", on_click=open_project, args=(name,))
+
+# ---------------- ARTIFACTS PAGE (from the video) ----------------
+_ARTIFACTS_EMPTY_SVG = ('<svg width="60" height="60" viewBox="0 0 64 64"><path d="M6 56 22 10l16 46z"/>'
+                        '<circle cx="42" cy="24" r="12" fill="#3a3a3a"/><rect x="34" y="38" width="22" height="18" rx="1"/></svg>')
+_TILE_SVGS = {
+    "docs": '<svg width="26" height="26" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/></svg>',
+    "slides": '<svg width="26" height="26" viewBox="0 0 24 24"><path d="M4 4h16"/><rect x="5" y="4" width="14" height="10" rx="1"/>'
+              '<path d="M12 14v4M9 21l3-3 3 3"/></svg>',
+    "design": '<svg width="26" height="26" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.4 0 2-1 1.6-2.2-.4-1.2.3-2.3 1.6-2.3H17a4 4 0 0 0 4-4C21 6.5 17 3 12 3z"/>'
+              '<circle cx="8" cy="11" r=".9"/><circle cx="12" cy="7.5" r=".9"/><circle cx="16" cy="10" r=".9"/></svg>',
+}
+_TILES = [("docs", "Docs", "Help me write a document about "),
+          ("slides", "Slides", "Help me create a presentation about "),
+          ("design", "Design", "Help me design ")]
+
+def render_artifacts_page():
+    st.markdown("<div class='pg-title'>Artifacts</div>", unsafe_allow_html=True)
+
+    with st.container(key="art_bar"):
+        t1, t2, t3, t4, t5 = st.columns([8, 0.55, 0.55, 0.55, 0.55], vertical_alignment="center")
+        with t1:
+            with st.container(key="art_tabs"):
+                if hasattr(st, "segmented_control"):
+                    st.segmented_control("Artifacts view", ["All", "Yours", "Shared with you"], default="All",
+                                         key="art_tab", label_visibility="collapsed")
+                else:
+                    st.radio("Artifacts view", ["All", "Yours", "Shared with you"], key="art_tab", horizontal=True,
+                             label_visibility="collapsed")
+        with t2:
+            st.button(" ", icon=":material/search:", key="ab_search", on_click=toggle_state, args=("art_search_on",))
+        with t3:
+            st.button(" ", icon=":material/filter_list:", key="ab_filter", on_click=toggle_state, args=("art_newest_first",))
+        with t4:
+            st.button(" ", icon=":material/view_list:", key="ab_list", on_click=toggle_state, args=("art_list_view",))
+        with t5:
+            st.button(" ", icon=":material/add:", key="ab_plus", on_click=go_chat, args=("Help me build ",))
+
+    tab = st.session_state.get("art_tab") or "All"
+    aq = ""
+    if st.session_state["art_search_on"]:
+        aq = (st.text_input("Search artifacts", key="art_q", placeholder="Search artifacts",
+                            label_visibility="collapsed") or "").strip().lower()
+
+    st.markdown("<div class='art-label'>Make something new</div>", unsafe_allow_html=True)
+    tcols = st.columns([1, 1, 1, 6], gap="small")
+    for col, (kind, label, prefill) in zip(tcols, _TILES):
+        with col:
+            with st.container(key=f"tile_{kind}"):
+                st.markdown(f"<div class='tile t-{kind}'>{_TILE_SVGS[kind]}</div><div class='tile-label'>{label}</div>",
+                            unsafe_allow_html=True)
+                st.button(" ", key=f"tbtn_{kind}", on_click=go_chat, args=(prefill,))
+
+    items = []
+    if tab in ("All", "Yours"):
+        items = [(i, a) for i, a in enumerate(st.session_state["artifact_items"])
+                 if not aq or aq in a["title"].lower() or aq in a["content"].lower()]
+        if st.session_state["art_newest_first"]:
+            items = items[::-1]
+
+    if items:
+        with st.container(key="art_cards"):
+            ncols = 1 if st.session_state["art_list_view"] else 3
+            cols = st.columns(ncols, gap="medium")
+            for n, (i, a) in enumerate(items):
+                with cols[n % ncols]:
+                    with st.container(key=f"acard_{i}"):
+                        snippet = _html.escape(a["content"].replace("```", "").strip()[:110])
+                        st.markdown(
+                            f"<div class='pcard'><div class='pc-title'>{_html.escape(a['title'])}</div>"
+                            f"<div class='pc-desc'>{snippet}</div><div class='pc-meta'>Artifact</div></div>",
+                            unsafe_allow_html=True)
+                        st.button(" ", key=f"abtn_{i}", on_click=open_artifact, args=(i,))
+    elif tab == "All":
+        if aq:
+            st.markdown("<div class='pg-empty'><div class='t1'>No artifacts match your search.</div></div>",
+                        unsafe_allow_html=True)
+        else:
+            st.markdown(
+                f"<div class='pg-empty'>{_ARTIFACTS_EMPTY_SVG}<div class='t1'>Your artifacts live here</div>"
+                f"<div class='t2'>Start from a template above, or ask {AI_NAME} to build something in any chat.</div></div>",
+                unsafe_allow_html=True)
+    elif tab == "Yours":
+        msg = "No artifacts match your search." if aq else "Create your first artifact"
+        sub = "" if aq else f"Artifacts you build with {AI_NAME} appear here."
+        st.markdown(f"<div class='pg-note'><div class='t1'>{msg}</div><div class='t2'>{sub}</div></div>",
+                    unsafe_allow_html=True)
+    else:
+        st.markdown("<div class='pg-note'><div class='t1'>No shared artifacts yet</div>"
+                    "<div class='t2'>When someone shares an artifact with you, it appears here.</div></div>",
+                    unsafe_allow_html=True)
+
 # ---------------- MAIN WINDOW ----------------
 if st.session_state.get("toast"):
     st.toast(st.session_state.pop("toast"))
@@ -955,7 +1700,16 @@ active_key = st.session_state["stored_groq_key"]
 if not active_key:
     st.markdown(f"<div style='height:14vh'></div><div class='hero'><img src='{STAR_URI}'>Welcome to Chandlio</div>",
                 unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #a1a1aa;'>Please enter your free Groq API key in the left sidebar to unlock the application.</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #a1a1aa;'>Open the account menu (bottom-left) → Settings and paste your free Groq API key to unlock the application.</p>", unsafe_allow_html=True)
+    st.stop()
+
+# Projects / Artifacts pages replace the chat screen (no top bar, no input bar), like in the video
+if st.session_state["page"] in ("projects", "artifacts"):
+    run_js(KEYS_AND_SCROLL_JS)
+    if st.session_state["page"] == "projects":
+        render_projects_page()
+    else:
+        render_artifacts_page()
     st.stop()
 
 _DOC_SVG = '<svg width="20" height="20" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/></svg>'
@@ -968,7 +1722,7 @@ st.markdown(
 
 try:
     from langchain_groq import ChatGroq
-    llm = ChatGroq(model="openai/gpt-oss-120b", temperature=0.3, max_tokens=2048)
+    llm = ChatGroq(model="openai/gpt-oss-120b", temperature=0.3, max_tokens=2048, api_key=active_key)
 
     if st.session_state["show_workspace"]:
         chat_pane, workspace_pane = st.columns([1, 1], gap="large")
@@ -982,9 +1736,11 @@ try:
             st.caption(f"📁 Project: {proj_name}")
 
         if not current_messages and st.session_state["pending_prompt"] is None:
+            with st.container(key="plan_wrap"):
+                st.button("Free plan · :blue[Upgrade]", key="plan_upgrade", on_click=soon,
+                          args=("Upgrade is not available yet.",))
             st.markdown(
-                f"<div style='height:12vh'></div>"
-                f"<div class='plan-wrap'><span class='plan-pill'>Free plan · Groq</span></div>"
+                f"<div style='height:9vh'></div>"
                 f"<div class='hero'><img src='{STAR_URI}'>{GREETING}</div>",
                 unsafe_allow_html=True)
 
@@ -1025,18 +1781,14 @@ try:
             with st.chat_message("assistant"):
                 with st.spinner("Thinking..."):
                     lower_prompt = prompt.lower()
-                    if "switzerland" in lower_prompt or "swiss" in lower_prompt or "pictures" in lower_prompt:
+                    if "switzerland" in lower_prompt or "swiss" in lower_prompt:
                         answer = "Here are some views of Switzerland:"
                         found_images = [b for b in (fetch_wiki_image(t) for t in
                                         ["Matterhorn", "Jungfrau", "Lake_Lucerne"]) if b]
                         if not found_images:
                             answer = "I couldn't load the images right now. Please try again."
                     else:
-                        _base_system_prompt = build_system_prompt()
-                        _user_instructions = st.session_state.get("custom_instructions", "").strip()
-                        if _user_instructions:
-                            _base_system_prompt += "\n\nUser preferences for this conversation:\n" + _user_instructions
-                        messages_payload = [("system", _base_system_prompt)]
+                        messages_payload = [("system", build_system_prompt())]
                         for m in current_messages:
                             messages_payload.append((m["role"], message_text(m)))
                         response = llm.invoke(messages_payload)
@@ -1052,6 +1804,9 @@ try:
             # Keep the latest code answer for the Artifacts button, but do NOT split the screen automatically
             if "```" in answer:
                 st.session_state["workspace_content"] = answer
+                _t = prompt.strip().replace("\n", " ")
+                st.session_state["artifact_items"].append(
+                    {"title": (_t[:40] + "…") if len(_t) > 40 else (_t or "Artifact"), "content": answer})
 
             # Generate a short Claude-style title once per chat, then refresh sidebar + top bar
             chat_key = st.session_state["current_chat"]
