@@ -880,7 +880,12 @@ def open_artifact(idx):
         st.session_state["page"] = "chat"
 
 # ---------------- SETTINGS DIALOG (account menu entry; full Claude-style layout) ----------------
-@st.dialog("Settings", width="large")
+def dismiss_settings():
+    st.session_state["settings_open"] = False
+    st.session_state["open_settings"] = False
+
+
+@st.dialog("Settings", width="large", dismissible=True, on_dismiss=dismiss_settings)
 def settings_dialog():
     sections = ["Account", "Billing", "Appearance", "Your Chandlio", "Capabilities",
                 "Notifications", "Privacy", "Wellbeing", "Customize", "Code"]
@@ -896,11 +901,39 @@ def settings_dialog():
     [data-testid="stDialog"] [role="dialog"] {
         width:min(1024px, calc(100vw - 48px)) !important;
         max-width:min(1024px, calc(100vw - 48px)) !important;
+        position:relative !important;
         min-width:0 !important; height:min(82vh, 820px) !important;
         max-height:min(82vh, 820px) !important; margin:auto !important;
         padding:0 !important; overflow:hidden !important; background:#1f1f1f !important;
         border:1px solid #303030 !important; border-radius:14px !important;
         box-shadow:0 18px 60px rgba(0,0,0,.55) !important;
+    }
+    /* Keep the native title and close button inside the settings frame. */
+    [data-testid="stDialog"] [role="dialog"]:has(.st-key-settings_shell) h2 {
+        display:block !important; margin:0 !important; padding:14px 60px 14px 16px !important;
+        min-height:48px !important; box-sizing:border-box !important;
+        border-bottom:1px solid #343434 !important;
+        font-size:1rem !important; font-weight:600 !important; line-height:20px !important;
+    }
+    [data-testid="stDialog"]:has(.st-key-settings_shell) button[aria-label="Close"],
+    [data-testid="stDialog"]:has(.st-key-settings_shell) button[aria-label="Close dialog"],
+    [data-testid="stDialog"]:has(.st-key-settings_shell) button[data-baseweb="modal-close"] {
+        position:absolute !important; top:8px !important; right:12px !important;
+        left:auto !important; bottom:auto !important; margin:0 !important;
+        width:32px !important; height:32px !important; min-height:32px !important;
+        padding:6px !important; transform:none !important; z-index:10 !important;
+        color:#eee !important; background:transparent !important; border:0 !important;
+    }
+    /* Natural text metrics; leave the dedicated icon font intact. */
+    [data-testid="stDialog"] [role="dialog"]:has(.st-key-settings_shell) {
+        font-family:"Segoe UI", Arial, sans-serif !important;
+        font-weight:400; line-height:1.5; letter-spacing:normal;
+        -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+    }
+    .st-key-settings_shell p, .st-key-settings_shell input,
+    .st-key-settings_shell textarea, .st-key-settings_shell label {
+        font-family:inherit !important; letter-spacing:normal !important;
+        line-height:1.5 !important;
     }
     /* Set the classic UI font on the dialog itself and let child icon widgets
        retain Streamlit's dedicated Material Symbols font. */
@@ -958,7 +991,7 @@ def settings_dialog():
     .st-key-settings_nav button:hover {background:#303030 !important;}
     .st-key-settings_nav [data-testid="stBaseButton-primary"] {background:#3b3b3b !important;color:#fff !important;}
     .st-key-settings_content {height:100%; overflow-y:auto !important; padding:18px 24px 30px 18px !important; background:#1f1f1f !important;}
-    .st-key-settings_content h3 {font-size:1.35rem !important;font-weight:650 !important;margin:0 0 22px !important;color:#f2f2f2 !important;}
+    .st-key-settings_content h3 {font-size:1.35rem !important;font-weight:600 !important;margin:0 0 22px !important;color:#f2f2f2 !important;}
     .st-key-settings_content h4 {font-size:1.05rem !important;margin:20px 0 12px !important;}
     .st-key-settings_content [data-testid="stDivider"] {margin:0 !important;}
     .st-key-settings_content [data-testid="stTextInput"], .st-key-settings_content [data-testid="stSelectbox"],
