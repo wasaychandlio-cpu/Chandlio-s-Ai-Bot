@@ -734,6 +734,11 @@ def build_system_prompt():
     custom = st.session_state.get("custom_instructions", "").strip()
     if custom:
         base += "\n\nAdditional user instructions: " + custom
+    catalog = dict(CUSTOMIZE_SKILLS)
+    catalog.update(st.session_state.get("customize_user_skills", {}))
+    for name in st.session_state.get("customize_active_skills", []):
+        if name in catalog:
+            base += "\n\nSkill guidance (apply when relevant): " + name + "\n" + catalog[name][1]
     return base
 
 # ---------------- CALLBACKS ----------------
@@ -878,6 +883,201 @@ def open_artifact(idx):
         st.session_state["workspace_content"] = items[idx]["content"]
         st.session_state["show_workspace"] = True
         st.session_state["page"] = "chat"
+
+# ---------------- CUSTOMIZE CATALOG ----------------
+# Catalog entries are visible without a model key. External services require
+# provider-specific authorization before Chandlio can access their data.
+CUSTOMIZE_APPS = [
+    ("Google Workspace", "Mail, documents, calendars, and files in one place.", "Everyday tools", "GW", "#4285f4"),
+    ("Search services", "Find information across your search services.", "Everyday tools", "G", "#4285f4"),
+    ("Google Photos", "Organize and find your photos.", "Creative expressions", "P", "#ea4335"),
+    ("YouTube", "Discover videos and channels.", "Media streaming", "▶", "#ff0033"),
+    ("Adobe", "Create and refine visual designs.", "Creative expressions", "A", "#eb1000"),
+    ("Canva", "Explore designs and creative projects.", "Creative expressions", "C", "#8b3dff"),
+    ("Dropbox", "Find and organize your files.", "Everyday tools", "D", "#0061ff"),
+    ("Granola", "Work with meeting notes and summaries.", "Business essentials", "G", "#9eae34"),
+    ("Hootsuite", "Plan and manage social content.", "Business essentials", "H", "#ff5148"),
+    ("Picsart", "Create and edit visual media.", "Creative expressions", "P", "#b322df"),
+    ("VistaPrint", "Prepare print designs and business materials.", "Creative expressions", "V", "#238cba"),
+    ("Webflow", "Work with website projects.", "Creative expressions", "W", "#146ef5"),
+    ("Wispr", "Work with recordings and transcriptions.", "Everyday tools", "W", "#56594b"),
+    ("Wix", "Manage and build your website.", "Business essentials", "Wix", "#233946"),
+    ("monday.com", "Organize projects, tasks, and teamwork.", "Business essentials", "m", "#ee4873"),
+    ("Contacts", "Find and organize contact information.", "Everyday tools", "C", "#1967d2"),
+    ("YouTube Music", "Discover music, artists, and playlists.", "Media streaming", "♫", "#ff0033"),
+    ("AndroidDevSummit", "Explore Android developer event information.", "Business essentials", "A", "#368f55"),
+    ("Fever", "Explore live events and entertainment.", "Dining and entertainment", "F", "#555555"),
+    ("Shopify", "Work with store products and business tasks.", "Business essentials", "S", "#779e38"),
+    ("Xero", "Organize accounting and invoice workflows.", "Business essentials", "X", "#1377d4"),
+    ("Chandlio Notebook", "Organize notes and reference material.", "Everyday tools", "N", "#7b8ff5"),
+    ("Google Ads", "Plan advertising campaigns.", "Business essentials", "A", "#4285f4"),
+    ("Google Business Profile", "Organize your business profile information.", "Business essentials", "B", "#4285f4"),
+    ("Verify AI", "Explore media provenance workflows.", "Creative expressions", "✓", "#616674"),
+]
+CUSTOMIZE_SKILLS = {
+    "Match your writing style": ("Use your writing samples to shape new drafts.", "For writing tasks, ask for a representative writing sample if none is available. Match its tone, vocabulary, sentence length, and structure without inventing personal facts."),
+    "Focus your energy": ("Plan your workload around your time and energy.", "For planning tasks, help prioritize a manageable workload based on the user's available time and energy. Suggest focused work blocks and realistic breaks."),
+    "Get more perspectives": ("Explore 3–5 useful viewpoints before deciding.", "When evaluating a decision or idea, offer 3 to 5 distinct perspectives, explain their tradeoffs, and identify assumptions."),
+    "Generate fresh ideas": ("Turn a starting point into five fresh directions.", "For brainstorming requests, generate five distinct, practical ideas with a short explanation of each. Avoid superficial variations."),
+    "Prep for meetings": ("Prepare an agenda, key questions, and a brief.", "For meeting preparation, use the context provided to draft a concise brief, objectives, agenda, key questions, and follow-up actions. Ask for missing meeting context when needed."),
+}
+
+
+def render_customize_page():
+    st.session_state.setdefault("customize_active_skills", [])
+    st.session_state.setdefault("customize_user_skills", {})
+    st.session_state.setdefault("customize_connector_configs", {})
+    st.markdown("""<style>
+    .st-key-customize_page {padding:8px 0 40px;}
+    .st-key-customize_page .cu-title {font-size:2rem;font-weight:400;margin:42px 0 4px;line-height:1.2;}
+    .st-key-customize_page .cu-sub {color:#999;font-size:1.05rem;margin-bottom:26px;}
+    .st-key-customize_page .cu-category {color:#aaa;font-size:1.15rem;font-weight:500;margin:28px 0 16px;}
+    .st-key-customize_page .cu-item {display:flex;align-items:center;gap:14px;min-height:76px;padding:10px 0;}
+    .st-key-customize_page .cu-icon {display:flex;align-items:center;justify-content:center;width:44px;height:44px;flex:0 0 44px;border-radius:13px;color:white;font-size:20px;font-weight:600;}
+    .st-key-customize_page .cu-copy {min-width:0;}
+    .st-key-customize_page .cu-name {color:#e5e5e5;font-size:1.05rem;line-height:1.4;}
+    .st-key-customize_page .cu-desc {color:#999;font-size:.9rem;line-height:1.45;}
+    .st-key-customize_page [data-testid="stHorizontalBlock"] {align-items:center;}
+    .st-key-customize_page [data-testid="stButton"] button {background:transparent;border:0;border-radius:24px;}
+    .st-key-cu_tabs button {padding:8px 20px !important;border-radius:28px !important;}
+    .st-key-cu_tabs button[kind="primary"] {background:#303030 !important;}
+    </style>""", unsafe_allow_html=True)
+    skills = dict(CUSTOMIZE_SKILLS)
+    skills.update(st.session_state["customize_user_skills"])
+    with st.container(key="customize_page"):
+        with st.container(key="cu_tabs"):
+            tab = st.segmented_control("Customize sections", ["Discover", "Connectors", "Skills"], default="Discover", key="cu_tab", label_visibility="collapsed") or "Discover"
+        titles = {"Discover": ("Customise Chandlio", "Add apps and skills to make Chandlio work better for you."), "Connectors": ("Connected apps", "Browse apps and configure your connector details."), "Skills": ("Skills", "Add or create skills to extend what Chandlio can do.")}
+        title, subtitle = titles[tab]
+        st.markdown(f"<div class='cu-title'>{title}</div><div class='cu-sub'>{subtitle}</div>", unsafe_allow_html=True)
+        h1, h2 = st.columns([3, 1])
+        with h1:
+            query = st.text_input("Search " + tab.lower(), placeholder="Search", key="cu_search_" + tab, label_visibility="collapsed").strip().casefold()
+        with h2:
+            if tab == "Connectors":
+                if st.button("＋ Custom", key="cu_custom"):
+                    st.session_state["cu_edit_connector"] = "Custom connector"
+            elif tab == "Skills":
+                if st.button("Create", key="cu_create"):
+                    st.session_state["cu_create_skill"] = True
+        if tab == "Connectors":
+            st.caption("Catalog only: app data access requires a provider integration. Saved configurations do not connect accounts.")
+        if tab == "Skills":
+            st.caption("Added skills guide new chat replies. Selections and custom skills are kept for this session.")
+        if tab == "Skills" and st.session_state.get("cu_create_skill"):
+            with st.form("cu_skill_form"):
+                name = st.text_input("Skill name", max_chars=80)
+                description = st.text_input("Description", max_chars=240)
+                instructions = st.text_area("Instructions", help="Describe how Chandlio should respond when this skill applies.")
+                save, cancel = st.columns(2)
+                submitted = save.form_submit_button("Save skill")
+                cancelled = cancel.form_submit_button("Cancel")
+                if submitted:
+                    if not name.strip() or not instructions.strip():
+                        st.error("Enter a skill name and instructions.")
+                    elif name.strip() in skills:
+                        st.error("A skill with this name already exists.")
+                    else:
+                        st.session_state["customize_user_skills"][name.strip()] = (description.strip(), instructions.strip())
+                        st.session_state["customize_active_skills"].append(name.strip())
+                        st.session_state["cu_create_skill"] = False
+                        st.rerun()
+                if cancelled:
+                    st.session_state["cu_create_skill"] = False
+                    st.rerun()
+        editing = st.session_state.get("cu_edit_connector")
+        if tab in ("Discover", "Connectors") and editing:
+            with st.expander(editing + " · Setup", expanded=True):
+                st.write("Provider authorization and a backend adapter are required to enable this service. You can save its setup details here for this session.")
+                with st.form("cu_connector_form"):
+                    saved = st.session_state["customize_connector_configs"].get(editing, {})
+                    name = st.text_input("Connector name", value=saved.get("name", editing))
+                    endpoint = st.text_input("Service URL", value=saved.get("url", ""), placeholder="https://…")
+                    notes = st.text_area("Setup notes", value=saved.get("notes", ""))
+                    save, cancel = st.columns(2)
+                    submitted = save.form_submit_button("Save configuration")
+                    cancelled = cancel.form_submit_button("Close")
+                    if submitted:
+                        from urllib.parse import urlsplit
+                        parsed = urlsplit(endpoint.strip())
+                        if not name.strip() or parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
+                            st.error("Enter a name and a valid HTTPS service URL without credentials.")
+                        else:
+                            st.session_state["customize_connector_configs"][editing] = {"name":name.strip(), "url":endpoint.strip(), "notes":notes.strip()}
+                            st.session_state.pop("cu_edit_connector", None)
+                            st.rerun()
+                    if cancelled:
+                        st.session_state.pop("cu_edit_connector", None)
+                        st.rerun()
+
+        def show_items(items, group):
+            if not items:
+                return
+            for offset in range(0, len(items), 2):
+                cols = st.columns(2, gap="large")
+                for col, item in zip(cols, items[offset:offset + 2]):
+                    name, description, kind, mark, color = item
+                    with col:
+                        text_col, action_col = st.columns([7, 1], vertical_alignment="center")
+                        added = name in st.session_state["customize_active_skills"]
+                        with text_col:
+                            esc = _html.escape
+                            st.markdown(f"<div class='cu-item'><span class='cu-icon' style='background:{color}'>{esc(mark)}</span><div class='cu-copy'><div class='cu-name'>{esc(name)}</div><div class='cu-desc'>{esc(description)}</div></div></div>", unsafe_allow_html=True)
+                        with action_col:
+                            label = "✓" if kind == "skill" and added else "+"
+                            if st.button(label, key=f"cu_item_{group}_{name}", help=("Remove skill" if added else "Add skill") if kind == "skill" else "View setup", use_container_width=True):
+                                if kind == "skill":
+                                    if added:
+                                        st.session_state["customize_active_skills"].remove(name)
+                                    else:
+                                        st.session_state["customize_active_skills"].append(name)
+                                else:
+                                    st.session_state["cu_edit_connector"] = name
+                                st.rerun()
+
+        def matches(item):
+            return not query or query in (item[0] + " " + item[1]).casefold()
+
+        skill_items = [(name, value[0], "skill", "≡", "#292929") for name, value in skills.items()]
+        if tab == "Discover":
+            for category in ["Everyday tools", "Business essentials", "Creative expressions", "Media streaming", "Dining and entertainment"]:
+                items = [a for a in CUSTOMIZE_APPS if a[2] == category]
+                if category == "Everyday tools":
+                    items += [s for s in skill_items if s[0] in ("Focus your energy", "Generate fresh ideas", "Get more perspectives")]
+                if category == "Business essentials":
+                    items = [s for s in skill_items if s[0] in ("Generate fresh ideas", "Get more perspectives", "Prep for meetings")] + items
+                items = [i for i in items if matches(i)]
+                if items:
+                    st.markdown(f"<div class='cu-category'>{category}</div>", unsafe_allow_html=True)
+                    show_items(items, category)
+            if not any(matches(a) for a in CUSTOMIZE_APPS + skill_items):
+                st.info("No matching apps or skills.")
+        elif tab == "Connectors":
+            st.markdown("<div class='cu-category'>All</div>", unsafe_allow_html=True)
+            items = [a for a in CUSTOMIZE_APPS if matches(a)]
+            show_items(items, "all")
+            if not items:
+                st.info("No matching connectors.")
+            configs = st.session_state["customize_connector_configs"]
+            if configs:
+                with st.expander("Saved configurations"):
+                    for key, config in configs.items():
+                        st.write(config['name'] + " · Setup saved · Not connected")
+                        st.caption(config['url'])
+                        if st.button("Edit", key="cu_config_edit_" + key):
+                            st.session_state["cu_edit_connector"] = key
+                            st.rerun()
+        else:
+            st.markdown("<div class='cu-category'>Recommended</div>", unsafe_allow_html=True)
+            items = [i for i in skill_items if matches(i) and i[0] in CUSTOMIZE_SKILLS]
+            show_items(items, "recommended")
+            custom = [i for i in skill_items if matches(i) and i[0] not in CUSTOMIZE_SKILLS]
+            if custom:
+                st.markdown("<div class='cu-category'>Your skills</div>", unsafe_allow_html=True)
+                show_items(custom, "custom")
+            if not items and not custom:
+                st.info("No matching skills.")
+
 
 # ---------------- SETTINGS DIALOG (account menu entry; full Claude-style layout) ----------------
 def dismiss_settings():
@@ -1318,7 +1518,7 @@ with st.sidebar:
     st.button("Code", icon=":material/code:", use_container_width=True, key="nav_code",
               on_click=soon, args=("Code is not available yet.",))
     st.button("Customize", icon=":material/work:", use_container_width=True, key="nav_customize",
-              on_click=soon, args=("Customize is not available yet.",))
+              on_click=go_page, args=("customize",), type="primary" if _page == "customize" else "secondary")
 
     st.markdown(f"<div class='side-head'><span>Chats and tasks &#9662;</span>{FILTER_SVG}</div>",
                 unsafe_allow_html=True)
@@ -1839,6 +2039,10 @@ def render_artifacts_page():
 # ---------------- MAIN WINDOW ----------------
 if st.session_state.get("toast"):
     st.toast(st.session_state.pop("toast"))
+
+if st.session_state["page"] == "customize":
+    render_customize_page()
+    st.stop()
 
 active_key = st.session_state["stored_groq_key"]
 
