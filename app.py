@@ -887,26 +887,26 @@ def settings_dialog():
     /* Large, centered settings surface matching the supplied reference */
     [data-testid="stDialog"] { align-items:center !important; justify-content:center !important; }
     [data-testid="stDialog"] [role="dialog"] {
-        width:94vw !important; max-width:94vw !important; min-width: min(94vw, 1100px) !important;
-        height:92vh !important; max-height:92vh !important; margin:auto !important;
-        padding:0 !important; overflow:hidden !important; background:#202020 !important;
-        border:1px solid #383838 !important; border-radius:16px !important;
+        width:64vw !important; max-width:1230px !important; min-width: min(64vw, 900px) !important;
+        height:84vh !important; max-height:84vh !important; margin:auto !important;
+        padding:0 !important; overflow:hidden !important; background:#1f1f1f !important;
+        border:1px solid #303030 !important; border-radius:14px !important;
         box-shadow:0 18px 60px rgba(0,0,0,.55) !important;
     }
     [data-testid="stDialog"] [data-testid="stDialogHeader"] {display:none !important;}
     [data-testid="stDialog"] [data-testid="stDialogContent"] {
-        padding:0 !important; height:100% !important; max-height:92vh !important; overflow:hidden !important;
+        padding:0 !important; height:100% !important; max-height:84vh !important; overflow:hidden !important;
     }
     [data-testid="stDialog"] [data-testid="stVerticalBlock"] {gap:.35rem !important;}
-    .st-key-settings_shell {height:100%; padding:0 !important; gap:0 !important;}
-    .st-key-settings_top {padding:12px 22px 10px !important; border-bottom:1px solid #343434 !important;}
+    .st-key-settings_shell {height:100%; padding:0 !important; gap:0 !important; background:#1f1f1f !important;}
+    .st-key-settings_top {padding:9px 18px 8px !important; border-bottom:1px solid #343434 !important; background:#1f1f1f !important;}
     .st-key-settings_top [data-testid="stHorizontalBlock"] {align-items:center !important;}
     .st-key-settings_heading {font-size:1.35rem;font-weight:650;color:#f1f1f1;padding:2px 0;}
     .st-key-settings_close button {background:transparent !important;border:0 !important;color:#eee !important;
         font-size:1.7rem !important;min-height:2rem !important;padding:0 .4rem !important;}
-    .st-key-settings_body {height:calc(92vh - 58px); padding:0 !important; gap:0 !important;}
-    .st-key-settings_nav {height:calc(92vh - 58px); overflow-y:auto !important; padding:20px 18px 24px 22px !important;
-        border-right:1px solid #343434 !important;}
+    .st-key-settings_body {height:calc(84vh - 52px); padding:0 !important; gap:0 !important; background:#1f1f1f !important;}
+    .st-key-settings_nav {height:calc(84vh - 52px); overflow-y:auto !important; padding:16px 14px 20px 16px !important;
+        border-right:1px solid #343434 !important; background:#191919 !important;}
     .st-key-settings_nav [data-testid="stTextInput"] {margin-bottom:12px !important;}
     .st-key-settings_nav input {background:#292929 !important;border:1px solid #414141 !important;border-radius:11px !important;
         min-height:2.55rem !important;color:#eee !important;}
@@ -914,11 +914,15 @@ def settings_dialog():
         text-align:left !important;background:transparent !important;border:0 !important;color:#e1e1e1 !important;
         border-radius:10px !important;min-height:2.65rem !important;padding:.45rem .8rem !important;font-size:1rem !important;}
     .st-key-settings_nav button p {text-align:left !important;}
+    .st-key-settings_nav button > div {justify-content:flex-start !important; width:100% !important;}
+    .st-key-settings_nav [data-testid="stMarkdownContainer"] {text-align:left !important;}
+    .st-key-settings_nav [data-testid="stDivider"] {margin:10px 0 !important;}
     .st-key-settings_nav button:hover {background:#303030 !important;}
     .st-key-settings_nav [data-testid="stBaseButton-primary"] {background:#3b3b3b !important;color:#fff !important;}
-    .st-key-settings_content {height:calc(92vh - 58px); overflow-y:auto !important; padding:24px 30px 38px 24px !important;}
+    .st-key-settings_content {height:calc(84vh - 52px); overflow-y:auto !important; padding:18px 24px 30px 18px !important; background:#1f1f1f !important;}
     .st-key-settings_content h3 {font-size:1.35rem !important;font-weight:650 !important;margin:0 0 22px !important;color:#f2f2f2 !important;}
     .st-key-settings_content h4 {font-size:1.05rem !important;margin:20px 0 12px !important;}
+    .st-key-settings_content [data-testid="stDivider"] {margin:0 !important;}
     .st-key-settings_content [data-testid="stTextInput"], .st-key-settings_content [data-testid="stSelectbox"],
     .st-key-settings_content [data-testid="stTextArea"] {margin:0 !important;}
     .st-key-settings_content input, .st-key-settings_content textarea,
@@ -931,11 +935,11 @@ def settings_dialog():
     .settings-row-title {font-size:1rem;color:#e6e6e6;font-weight:500;}
     .settings-row-note {font-size:.88rem;color:#999;margin-top:4px;}
     .settings-section-note {color:#999;font-size:.9rem;margin:-12px 0 18px;}
-    .settings-profile {display:flex;align-items:center;gap:18px;padding:12px 0 20px;border-bottom:1px solid #343434;margin-bottom:4px;}
+    .settings-profile {display:flex;align-items:center;justify-content:space-between;gap:18px;padding:12px 0 18px;border-bottom:1px solid #343434;margin-bottom:0;}
     .settings-avatar {width:58px;height:58px;border-radius:50%;background:#383838;display:flex;align-items:center;justify-content:center;
         font-size:23px;color:#eee;flex-shrink:0;}
     @media(max-width:900px){
-      [data-testid="stDialog"] [role="dialog"]{width:96vw !important;max-width:96vw !important;min-width:96vw !important;height:94vh !important;max-height:94vh !important;}
+      [data-testid="stDialog"] [role="dialog"]{width:94vw !important;max-width:94vw !important;min-width:94vw !important;height:90vh !important;max-height:90vh !important;}
       .st-key-settings_nav{padding:14px 10px !important;}
       .st-key-settings_content{padding:18px 14px !important;}
       .settings-row{grid-template-columns:1fr;gap:8px;}
@@ -977,7 +981,7 @@ def settings_dialog():
                     section = st.session_state.get("settings_section", "Account")
                     st.subheader("Profile" if section == "Account" else section)
                     if section == "Account":
-                        st.markdown("<div class='settings-profile'><div class='settings-avatar'>C</div><div><div class='settings-row-title'>Profile photo</div><div class='settings-row-note'>PNG, JPEG, or WebP up to 10MB.</div></div></div>", unsafe_allow_html=True)
+                        st.markdown("<div class='settings-profile'><div><div class='settings-row-title'>Profile photo</div><div class='settings-row-note'>PNG, JPEG, or WebP, up to 10MB.</div></div><div class='settings-avatar'>C</div></div>", unsafe_allow_html=True)
                         for label, key, default in [("Full name", "profile_full_name", "Chandlio User"), ("What should Chandlio call you?", "profile_call_name", "Chandlio User")]:
                             left, right = st.columns([1.35, 1.65], vertical_alignment="center")
                             with left: st.markdown(f"<div class='settings-row-title'>{label}</div>", unsafe_allow_html=True)
