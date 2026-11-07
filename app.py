@@ -902,8 +902,32 @@ def settings_dialog():
         border:1px solid #303030 !important; border-radius:14px !important;
         box-shadow:0 18px 60px rgba(0,0,0,.55) !important;
     }
-    [data-testid="stDialog"] [role="dialog"],
-    [data-testid="stDialog"] [role="dialog"] * { font-family: var(--ui-font) !important; }
+    /* Set the classic UI font on the dialog itself and let child icon widgets
+       retain Streamlit's dedicated Material Symbols font. */
+    [data-testid="stDialog"] [role="dialog"] { font-family: var(--ui-font) !important; }
+    [data-testid="stDialog"] [role="dialog"] :not(span[data-testid="stIconMaterial"]) { font-family: inherit; }
+    [data-testid="stDialog"] span[data-testid="stIconMaterial"],
+    [data-testid="stDialog"] .material-symbols-rounded,
+    [data-testid="stDialog"] .material-symbols-outlined {
+        font-family: "Material Symbols Rounded" !important;
+        font-weight: normal !important;
+        font-style: normal !important;
+        font-size: 20px !important;
+        line-height: 1 !important;
+        letter-spacing: normal !important;
+        text-transform: none !important;
+        white-space: nowrap !important;
+        word-wrap: normal !important;
+        direction: ltr !important;
+        -webkit-font-smoothing: antialiased !important;
+        font-feature-settings: "liga" !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        flex: 0 0 20px !important;
+    }
+    .st-key-settings_nav button [data-testid="stIconMaterial"] { margin-right: 10px !important; }
+    .st-key-settings_nav button [data-testid="stMarkdownContainer"] p { margin: 0 !important; }
     [data-testid="stDialog"] [data-testid="stDialogHeader"] {
         display:flex !important; align-items:center !important; min-height:48px !important;
         padding:8px 18px !important; background:#1f1f1f !important;
@@ -927,8 +951,8 @@ def settings_dialog():
     .st-key-settings_nav button {width:100% !important;display:flex !important;justify-content:flex-start !important;
         text-align:left !important;background:transparent !important;border:0 !important;color:#e1e1e1 !important;
         border-radius:10px !important;min-height:2.65rem !important;padding:.45rem .8rem !important;font-size:1rem !important;}
-    .st-key-settings_nav button p {text-align:left !important;}
-    .st-key-settings_nav button > div {justify-content:flex-start !important; width:100% !important;}
+    .st-key-settings_nav button p {text-align:left !important; margin:0 !important;}
+    .st-key-settings_nav button > div {justify-content:flex-start !important; width:100% !important; align-items:center !important; gap:10px !important;}
     .st-key-settings_nav [data-testid="stMarkdownContainer"] {text-align:left !important;}
     .st-key-settings_nav [data-testid="stDivider"] {margin:10px 0 !important;}
     .st-key-settings_nav button:hover {background:#303030 !important;}
