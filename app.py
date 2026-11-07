@@ -885,27 +885,33 @@ def settings_dialog():
     st.markdown("""
     <style>
     /* Large, centered settings surface matching the supplied reference */
+    /* Use ONE native Streamlit dialog frame: no nested window or duplicate close control. */
     [data-testid="stDialog"] { align-items:center !important; justify-content:center !important; }
     [data-testid="stDialog"] [role="dialog"] {
-        width:64vw !important; max-width:1230px !important; min-width: min(64vw, 900px) !important;
-        height:84vh !important; max-height:84vh !important; margin:auto !important;
+        width:min(1024px, calc(100vw - 48px)) !important;
+        max-width:min(1024px, calc(100vw - 48px)) !important;
+        min-width:0 !important; height:min(82vh, 820px) !important;
+        max-height:min(82vh, 820px) !important; margin:auto !important;
         padding:0 !important; overflow:hidden !important; background:#1f1f1f !important;
         border:1px solid #303030 !important; border-radius:14px !important;
         box-shadow:0 18px 60px rgba(0,0,0,.55) !important;
     }
-    [data-testid="stDialog"] [data-testid="stDialogHeader"] {display:none !important;}
+    [data-testid="stDialog"] [data-testid="stDialogHeader"] {
+        display:flex !important; align-items:center !important; min-height:48px !important;
+        padding:8px 18px !important; background:#1f1f1f !important;
+        border-bottom:1px solid #343434 !important; color:#f1f1f1 !important;
+    }
+    [data-testid="stDialog"] [data-testid="stDialogHeader"] button {
+        color:#eee !important; background:transparent !important; border:0 !important;
+    }
     [data-testid="stDialog"] [data-testid="stDialogContent"] {
-        padding:0 !important; height:100% !important; max-height:84vh !important; overflow:hidden !important;
+        padding:0 !important; height:calc(100% - 48px) !important;
+        max-height:calc(82vh - 48px) !important; overflow:hidden !important;
     }
     [data-testid="stDialog"] [data-testid="stVerticalBlock"] {gap:.35rem !important;}
     .st-key-settings_shell {height:100%; padding:0 !important; gap:0 !important; background:#1f1f1f !important;}
-    .st-key-settings_top {padding:9px 18px 8px !important; border-bottom:1px solid #343434 !important; background:#1f1f1f !important;}
-    .st-key-settings_top [data-testid="stHorizontalBlock"] {align-items:center !important;}
-    .st-key-settings_heading {font-size:1.35rem;font-weight:650;color:#f1f1f1;padding:2px 0;}
-    .st-key-settings_close button {background:transparent !important;border:0 !important;color:#eee !important;
-        font-size:1.7rem !important;min-height:2rem !important;padding:0 .4rem !important;}
-    .st-key-settings_body {height:calc(84vh - 52px); padding:0 !important; gap:0 !important; background:#1f1f1f !important;}
-    .st-key-settings_nav {height:calc(84vh - 52px); overflow-y:auto !important; padding:16px 14px 20px 16px !important;
+    .st-key-settings_body {height:100%; padding:0 !important; gap:0 !important; background:#1f1f1f !important;}
+    .st-key-settings_nav {height:100%; overflow-y:auto !important; padding:16px 14px 20px 16px !important;
         border-right:1px solid #343434 !important; background:#191919 !important;}
     .st-key-settings_nav [data-testid="stTextInput"] {margin-bottom:12px !important;}
     .st-key-settings_nav input {background:#292929 !important;border:1px solid #414141 !important;border-radius:11px !important;
@@ -919,7 +925,7 @@ def settings_dialog():
     .st-key-settings_nav [data-testid="stDivider"] {margin:10px 0 !important;}
     .st-key-settings_nav button:hover {background:#303030 !important;}
     .st-key-settings_nav [data-testid="stBaseButton-primary"] {background:#3b3b3b !important;color:#fff !important;}
-    .st-key-settings_content {height:calc(84vh - 52px); overflow-y:auto !important; padding:18px 24px 30px 18px !important; background:#1f1f1f !important;}
+    .st-key-settings_content {height:100%; overflow-y:auto !important; padding:18px 24px 30px 18px !important; background:#1f1f1f !important;}
     .st-key-settings_content h3 {font-size:1.35rem !important;font-weight:650 !important;margin:0 0 22px !important;color:#f2f2f2 !important;}
     .st-key-settings_content h4 {font-size:1.05rem !important;margin:20px 0 12px !important;}
     .st-key-settings_content [data-testid="stDivider"] {margin:0 !important;}
@@ -938,25 +944,16 @@ def settings_dialog():
     .settings-profile {display:flex;align-items:center;justify-content:space-between;gap:18px;padding:12px 0 18px;border-bottom:1px solid #343434;margin-bottom:0;}
     .settings-avatar {width:58px;height:58px;border-radius:50%;background:#383838;display:flex;align-items:center;justify-content:center;
         font-size:23px;color:#eee;flex-shrink:0;}
-    @media(max-width:900px){
-      [data-testid="stDialog"] [role="dialog"]{width:94vw !important;max-width:94vw !important;min-width:94vw !important;height:90vh !important;max-height:90vh !important;}
-      .st-key-settings_nav{padding:14px 10px !important;}
-      .st-key-settings_content{padding:18px 14px !important;}
+    @media(max-width:760px){
+      [data-testid="stDialog"] [role="dialog"]{width:calc(100vw - 20px) !important;max-width:calc(100vw - 20px) !important;height:90vh !important;max-height:90vh !important;}
+      .st-key-settings_nav{padding:12px 8px !important;}
+      .st-key-settings_content{padding:14px 10px !important;}
       .settings-row{grid-template-columns:1fr;gap:8px;}
     }
     </style>
     """, unsafe_allow_html=True)
 
     with st.container(key="settings_shell"):
-        with st.container(key="settings_top"):
-            head, close = st.columns([12, 1], vertical_alignment="center")
-            with head:
-                st.markdown("<div class='st-key-settings_heading'>Settings</div>", unsafe_allow_html=True)
-            with close:
-                with st.container(key="settings_close"):
-                    if st.button("×", key="settings_close_button", help="Close settings"):
-                        st.session_state["settings_open"] = False
-                        st.rerun()
         with st.container(key="settings_body"):
             nav_col, content_col = st.columns([0.92, 3.08], gap="small")
             with nav_col:
@@ -975,7 +972,6 @@ def settings_dialog():
                                      type="primary" if st.session_state.get("settings_section") == section else "secondary",
                                      use_container_width=True):
                             st.session_state["settings_section"] = section
-                            st.rerun()
             with content_col:
                 with st.container(key="settings_content"):
                     section = st.session_state.get("settings_section", "Account")
