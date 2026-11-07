@@ -439,6 +439,17 @@ html[data-sbcollapsed] .st-key-account_wrap { display: none !important; }
     align-items: center !important; width: 100% !important; }
 [class*="st-key-srch_row_"] button::after, .st-key-srch_newchat button::after { white-space: nowrap; flex: 0 0 auto; }
 [data-testid="stDialog"] .srch-label { padding-left: 22px; }
+
+/* ---------- fix: remove the dark outer frame around the search popup + footer spacing ---------- */
+[data-testid="stDialog"] div:has(.st-key-srch_head) { background: transparent !important; box-shadow: none !important;
+    border: none !important; outline: none !important; }
+[data-testid="stDialog"] [role="dialog"]:has(.st-key-srch_head) { background: #2f2f2f !important; }
+[data-testid="stDialog"] div:has(.st-key-np_wrap):not([role="dialog"]) { background: transparent !important; box-shadow: none !important; border: none !important; }
+[data-testid="stDialog"] [role="dialog"]:has(.st-key-np_wrap) { background: #2b2b2b !important; }
+.srch-foot { gap: .8rem; flex-wrap: nowrap; font-size: .9rem; padding: 14px 20px; }
+.srch-foot .grp { gap: 1.1rem; flex-wrap: nowrap; }
+.srch-foot .it { gap: .4rem; white-space: nowrap; }
+.srch-foot kbd { font-size: .8rem; }
 </style>
 """, unsafe_allow_html=True)
 
