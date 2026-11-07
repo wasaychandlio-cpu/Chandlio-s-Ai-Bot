@@ -67,8 +67,10 @@ STAR_URI = _load_logo() or (_b64_logo_uri(_LOGO_B64) if _LOGO_B64.strip() else N
 
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&display=swap');
-:root { --serif: "Source Serif 4", "Tiempos Text", Georgia, "Times New Roman", serif; }
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&display=swap');
+:root { --serif: "Source Sans 3", "Segoe UI", Arial, sans-serif; --ui-font: "Source Sans 3", "Segoe UI", Arial, sans-serif; }
+html, body, [data-testid="stApp"], [data-testid="stAppViewContainer"], button, input, textarea, select, [data-baseweb], [data-testid="stMarkdownContainer"] { font-family: var(--ui-font) !important; }
+[data-testid="stApp"] { font-family: var(--ui-font) !important; }
 
 .stApp { background-color: #191919; color: #ffffff; }
 [data-testid="stHeader"] { background: transparent !important; }
@@ -886,7 +888,11 @@ def settings_dialog():
     <style>
     /* Large, centered settings surface matching the supplied reference */
     /* Use ONE native Streamlit dialog frame: no nested window or duplicate close control. */
-    [data-testid="stDialog"] { align-items:center !important; justify-content:center !important; }
+    [data-testid="stDialog"] { align-items:center !important; justify-content:center !important; background:rgba(0,0,0,.54) !important; }
+    /* Streamlit adds an inner content wrapper; keep it transparent so it cannot look like a second black window. */
+    [data-testid="stDialog"] div:has(.st-key-settings_shell):not([role="dialog"]) {
+        background:transparent !important; border:0 !important; outline:0 !important; box-shadow:none !important;
+    }
     [data-testid="stDialog"] [role="dialog"] {
         width:min(1024px, calc(100vw - 48px)) !important;
         max-width:min(1024px, calc(100vw - 48px)) !important;
@@ -896,6 +902,8 @@ def settings_dialog():
         border:1px solid #303030 !important; border-radius:14px !important;
         box-shadow:0 18px 60px rgba(0,0,0,.55) !important;
     }
+    [data-testid="stDialog"] [role="dialog"],
+    [data-testid="stDialog"] [role="dialog"] * { font-family: var(--ui-font) !important; }
     [data-testid="stDialog"] [data-testid="stDialogHeader"] {
         display:flex !important; align-items:center !important; min-height:48px !important;
         padding:8px 18px !important; background:#1f1f1f !important;
