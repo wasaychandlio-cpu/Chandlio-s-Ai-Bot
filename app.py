@@ -261,9 +261,9 @@ html[data-sbcollapsed] .st-key-account_wrap { display: none !important; }
 .st-key-side_devices button { color: #e8e8e8 !important; justify-content: center !important; padding: .42rem .4rem !important; }
 
 /* ---------- Search popup ---------- */
-[data-testid="stDialog"] div[role="dialog"] { background: #2f2f2f !important; border-radius: 20px !important;
+[data-testid="stDialog"] [role="dialog"] { background: #2f2f2f !important; border-radius: 20px !important;
     padding: 0 !important; width: 720px !important; max-width: 94vw !important; overflow: hidden; }
-[data-testid="stDialog"] div[role="dialog"] h2 { display: none !important; }
+[data-testid="stDialog"] [role="dialog"] h2 { display: none !important; }
 [data-testid="stDialog"] button[aria-label="Close"] { position: absolute !important; top: 18px !important; right: 20px !important;
     color: #f2f2f2 !important; z-index: 5; transform: scale(1.35); }
 [data-testid="stDialog"] [data-testid="stVerticalBlock"] { gap: 0 !important; }
@@ -386,11 +386,11 @@ html[data-sbcollapsed] .st-key-account_wrap { display: none !important; }
 .st-key-art_tabs [data-testid^="stBaseButton-segmented"][aria-checked="true"] { background: #3a3a3a !important; color: #fff !important; }
 
 /* "Create a project" popup */
-[data-testid="stDialog"] div[role="dialog"]:has(.st-key-np_wrap) { width: 520px !important; padding: 22px 24px 22px 24px !important;
+[data-testid="stDialog"] [role="dialog"]:has(.st-key-np_wrap) { width: 520px !important; padding: 22px 24px 22px 24px !important;
     background: #2b2b2b !important; border-radius: 16px !important; }
-[data-testid="stDialog"] div[role="dialog"]:has(.st-key-np_wrap) h2 { display: block !important; font-size: 1rem !important;
+[data-testid="stDialog"] [role="dialog"]:has(.st-key-np_wrap) h2 { display: block !important; font-size: 1rem !important;
     font-weight: 600 !important; color: #fff !important; padding: 0 0 .9rem 0 !important; }
-[data-testid="stDialog"] div[role="dialog"]:has(.st-key-np_wrap) button[aria-label="Close"] { top: 16px !important; right: 18px !important; transform: scale(1); }
+[data-testid="stDialog"] [role="dialog"]:has(.st-key-np_wrap) button[aria-label="Close"] { top: 16px !important; right: 18px !important; transform: scale(1); }
 .st-key-np_wrap [data-testid="stElementContainer"] { margin-bottom: .6rem !important; }
 .st-key-np_wrap label, .st-key-np_wrap label p { color: #f2f2f2 !important; font-size: .9rem !important; font-weight: 500 !important; }
 .st-key-np_wrap input, .st-key-np_wrap textarea { background: #242424 !important; color: #fff !important;
@@ -405,6 +405,40 @@ html[data-sbcollapsed] .st-key-account_wrap { display: none !important; }
 .st-key-np_cancel button { background: #4a4a4a !important; color: #fff !important; }
 .st-key-np_create button { background: #f5f4ef !important; color: #191919 !important; }
 .st-key-np_create button p { color: #191919 !important; }
+
+/* ---------- fixes: search popup + artifacts tabs on newer Streamlit versions ---------- */
+[data-testid="stDialog"] [role="dialog"]:has(.st-key-srch_head) { background: #2f2f2f !important; border-radius: 20px !important;
+    padding: 0 !important; width: 720px !important; max-width: 94vw !important; margin: 0 auto !important; overflow: hidden !important; }
+[data-testid="stDialog"] [role="dialog"]:has(.st-key-srch_head) h2,
+[data-testid="stDialog"] [role="dialog"]:has(.st-key-srch_head) [data-testid="stDialogTitle"] { display: none !important; }
+[data-testid="stDialog"] [role="dialog"]:has(.st-key-srch_head) > div,
+[data-testid="stDialog"] [role="dialog"]:has(.st-key-srch_head) [data-testid="stVerticalBlock"] { background: transparent !important; }
+
+.st-key-srch_tabs button, .st-key-srch_tabs label, .st-key-art_tabs button, .st-key-art_tabs label {
+    background: transparent !important; border: none !important; outline: none !important; box-shadow: none !important;
+    color: #e8e8e8 !important; border-radius: 10px !important; min-height: 2.5rem !important; padding: 0 .9rem !important; }
+.st-key-art_tabs button, .st-key-art_tabs label { min-height: 2rem !important; padding: 0 .8rem !important; border-radius: 8px !important; }
+.st-key-srch_tabs button p, .st-key-srch_tabs label p, .st-key-art_tabs button p, .st-key-art_tabs label p {
+    color: inherit !important; font-size: 1.1rem !important; }
+.st-key-art_tabs button p, .st-key-art_tabs label p { font-size: 1rem !important; }
+.st-key-srch_tabs button:hover, .st-key-art_tabs button:hover { background: #3a3a3a !important; }
+.st-key-srch_tabs button[aria-checked="true"], .st-key-srch_tabs button[aria-pressed="true"],
+.st-key-srch_tabs button[kind$="Active"], .st-key-srch_tabs button[data-testid$="Active"],
+.st-key-art_tabs button[aria-checked="true"], .st-key-art_tabs button[aria-pressed="true"],
+.st-key-art_tabs button[kind$="Active"], .st-key-art_tabs button[data-testid$="Active"] {
+    background: #4a4a4a !important; color: #ffffff !important; }
+.st-key-art_tabs button[aria-checked="true"], .st-key-art_tabs button[aria-pressed="true"],
+.st-key-art_tabs button[kind$="Active"], .st-key-art_tabs button[data-testid$="Active"] { background: #3a3a3a !important; }
+
+/* search rows: icon + text on the left, like the + menu */
+[class*="st-key-srch_row_"] button > div, [class*="st-key-srch_row_"] button [data-testid="stMarkdownContainer"],
+.st-key-srch_newchat button > div, .st-key-srch_newchat button [data-testid="stMarkdownContainer"] {
+    justify-content: flex-start !important; text-align: left !important; flex: 0 1 auto; width: auto; }
+[class*="st-key-srch_row_"] button p, .st-key-srch_newchat button p { text-align: left !important; }
+[class*="st-key-srch_row_"] button, .st-key-srch_newchat button { display: flex !important; justify-content: flex-start !important;
+    align-items: center !important; width: 100% !important; }
+[class*="st-key-srch_row_"] button::after, .st-key-srch_newchat button::after { white-space: nowrap; flex: 0 0 auto; }
+[data-testid="stDialog"] .srch-label { padding-left: 22px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -880,7 +914,7 @@ def search_dialog():
     chat_rows = tab in ("All", "Chats") and bool(chat_hits)
     # first row is highlighted (that is what Enter opens); when there are no chats, "New chat" is highlighted
     hl_css = ("<style>.st-key-srch_first button { background: #4a4a4a !important; }"
-              ".st-key-srch_first button::after { content: \"\\22EF   \\21B5\"; margin-left: auto; color: #cfcfcf; letter-spacing: .08em; }</style>"
+              ".st-key-srch_first button::after { content: \"\\22EF   \\21B5\"; margin-left: auto; color: #cfcfcf; letter-spacing: .08em; white-space: nowrap; }</style>"
               if chat_rows else
               "<style>.st-key-srch_newchat button { background: #4a4a4a !important; }"
               ".st-key-srch_newchat button::after { content: \"\\21B5\"; margin-left: auto; color: #cfcfcf; font-size: 1.4rem; line-height: 1; }</style>")
