@@ -602,8 +602,8 @@ TEXT_EXT = (".txt", ".md", ".py", ".csv", ".json", ".js", ".html", ".css", ".xml
 
 # ---------------- HELPERS ----------------
 def add_attachment(name, mime, data):
-    library_auto_save(name, mime, data)
-    if not any(a["name"] == name and len(a["data"]) == len(data) for a in st.session_state["attachments"]):
+    library_auto_save(name, mime, data, library_chat_source("User upload"))
+    if not any(a["name"] == name and a["data"] == data for a in st.session_state["attachments"]):
         st.session_state["attachments"].append({"name": name, "type": mime or "", "data": data})
 
 def is_image(f):
@@ -980,8 +980,10 @@ def library_save(name, mime, data, source="Upload"):
         return file_id
     if library_cloud_config():
         # Stable names and upsert keep repeated chat uploads from duplicating files.
+        import json
+        metadata=base64.b64encode(json.dumps({'source':source}).encode()).decode()
         library_cloud_request("POST", "object/{bucket}/" + vault + "/" + file_id,
-                              data=bytes(data), headers={"Content-Type":mime, "x-upsert":"true"})
+                              data=bytes(data), headers={"Content-Type":mime, "x-upsert":"true", "x-metadata":metadata})
     else:
         conn = library_db()
         try:
@@ -1013,7 +1015,7 @@ def library_list():
                 except (ValueError, UnicodeError):
                     continue
                 metadata = row.get("metadata") or {}
-                rows.append({"id":file_id,"name":name,"mime":metadata.get("mimetype", "application/octet-stream"),"size":int(metadata.get("size",0)),"created":row.get("created_at", ""),"source":"Library"})
+                rows.append({"id":file_id,"name":name,"mime":metadata.get("mimetype", "application/octet-stream"),"size":int(metadata.get("size",0)),"created":row.get("created_at", ""),"source":(row.get("user_metadata") or {}).get("source","Library")})
             if len(page) < 100:
                 return rows
             offset += len(page)
@@ -1061,33 +1063,177 @@ def library_delete(file_id):
 
 def library_auto_save(name, mime, data, source="Chat upload"):
     try:
-        library_save(name, mime, data, source)
+        return library_save(name, mime, data, source)
     except Exception:
         st.session_state["library_save_error"] = "A file could not be saved to Library. Keep a downloaded copy and check Library storage."
 
 
 def library_import_session():
-    # Bring files already uploaded in this running session into Library, too.
     for f in st.session_state.get("attachments", []):
-        library_auto_save(f["name"], f.get("type", ""), f["data"])
+        library_auto_save(f["name"],f.get("type", ""),f["data"],library_chat_source("User upload"))
     for project in st.session_state.get("projects", {}).values():
         for f in project.get("files", []):
-            library_auto_save(f["name"], f.get("type", ""), f["data"], "Project")
-    for messages in st.session_state.get("chat_sessions", {}).values():
+            library_auto_save(f["name"],f.get("type", ""),f["data"],"Project")
+    for chat_id,messages in st.session_state.get("chat_sessions", {}).items():
         for message in messages:
-            for f in message.get("files", []):
-                library_auto_save(f["name"], f.get("type", ""), f["data"])
-            for image_data in message.get("images", []):
-                if isinstance(image_data, bytes):
-                    library_save_photo(image_data)
+            library_capture_message(message,chat_id)
     for artifact in st.session_state.get("artifact_items", []):
         library_auto_save(artifact.get("title", "Artifact") + ".md", "text/markdown", artifact["content"].encode(), "Artifact")
 
 
-def library_save_photo(data):
+def library_save_photo(data,source=None):
+    import mimetypes
     mime = _sniff_mime(data) or ("image/gif" if data[:3] == b"GIF" else "application/octet-stream")
     ext = {"image/jpeg":"jpg","image/png":"png","image/webp":"webp","image/gif":"gif"}.get(mime,"bin")
-    library_auto_save("Photo_" + hashlib.sha256(data).hexdigest()[:12] + "." + ext, mime, data, "Chat photo")
+    return library_auto_save("Photo_" + hashlib.sha256(data).hexdigest()[:12] + "." + ext, mime, data, source or library_chat_source("AI generated"))
+
+
+def library_chat_source(origin, chat_id=None):
+    import json
+    chat_id = chat_id or st.session_state.get('current_chat', '')
+    title = st.session_state.get('chat_titles', {}).get(chat_id) or chat_id
+    return json.dumps({'origin':origin,'chat_id':chat_id,'chat_title':title},ensure_ascii=False)
+
+
+def library_source_info(value):
+    import json
+    try:
+        info = json.loads(value)
+        if isinstance(info,dict):
+            return info
+    except (ValueError,TypeError):
+        pass
+    origin = 'AI generated' if value in ('Artifact','Chat photo') else ('User upload' if value in ('Chat upload','Library upload','Upload','Project') else 'Saved file')
+    return {'origin':origin,'chat_id':'','chat_title':''}
+
+
+def library_decode_payload(value):
+    """Accept actual bytes or inline encoded data, never arbitrary local paths/URLs."""
+    if isinstance(value,(bytes,bytearray)):
+        return bytes(value), None
+    if isinstance(value,str) and value.startswith('data:'):
+        header, sep, encoded = value.partition(',')
+        if sep and ';base64' in header and len(encoded) <= 70*1024*1024:
+            try:
+                return base64.b64decode(encoded,validate=True), header[5:].split(';')[0]
+            except ValueError:
+                pass
+    return None,None
+
+
+def library_response_parts(content):
+    """Normalize real multimodal provider output without treating links as files."""
+    import mimetypes
+    if isinstance(content,str):
+        return content,[],[]
+    blocks = content if isinstance(content,list) else [content]
+    text,files,photos=[],[],[]
+    for block in blocks:
+        if isinstance(block,str):
+            text.append(block)
+            continue
+        if not isinstance(block,dict):
+            continue
+        kind=block.get('type','')
+        if kind in ('text','output_text'):
+            text.append(str(block.get('text','')))
+            continue
+        mime=block.get('mime_type') or block.get('media_type') or block.get('mime')
+        payload=block.get('data')
+        source=block.get('source') or block.get('inline_data') or block.get('inlineData') or {}
+        if isinstance(source,dict) and (source.get('mime_type') or source.get('mimeType')):
+            source=dict(source,type='base64',media_type=source.get('mime_type') or source.get('mimeType'))
+        nested_file=block.get('file')
+        if isinstance(nested_file,dict):
+            payload=nested_file.get('file_data',payload)
+            if not block.get('filename') and nested_file.get('filename'):
+                block=dict(block,filename=nested_file['filename'])
+        if isinstance(source,dict) and source.get('type')=='base64':
+            mime=source.get('media_type') or mime
+            encoded=source.get('data','')
+            payload='data:'+str(mime or 'application/octet-stream')+';base64,'+encoded if isinstance(encoded,str) else None
+        image=block.get('image_url')
+        if isinstance(image,dict):payload=image.get('url',payload)
+        elif isinstance(image,str):payload=image
+        data,detected=library_decode_payload(payload)
+        raw_base64=block.get('base64') or block.get('b64_json')
+        if data is None and isinstance(raw_base64,str):
+            data,detected=library_decode_payload('data:'+str(mime or ('image/png' if kind in ('image','output_image') else 'application/octet-stream'))+';base64,'+raw_base64)
+        if data is None:
+            continue
+        mime=mime or detected or _sniff_mime(data) or 'application/octet-stream'
+        if mime.startswith('image/'):
+            photos.append(data)
+        else:
+            ext=mimetypes.guess_extension(mime) or '.bin'
+            name=block.get('filename') or block.get('name') or 'Generated_'+hashlib.sha256(data).hexdigest()[:10]+ext
+            files.append({'name':library_clean_name(name),'type':mime,'data':data})
+    return '\n\n'.join(text),files,photos
+
+
+def library_code_files(content):
+    """Make each completed code/data block a real downloadable file."""
+    import re,mimetypes
+    if not isinstance(content,str):
+        return []
+    extensions={'python':'.py','py':'.py','javascript':'.js','js':'.js','typescript':'.ts','ts':'.ts','jsx':'.jsx','tsx':'.tsx','html':'.html','css':'.css','json':'.json','csv':'.csv','xml':'.xml','svg':'.svg','yaml':'.yaml','yml':'.yml','sql':'.sql','bash':'.sh','sh':'.sh','shell':'.sh','powershell':'.ps1','markdown':'.md','md':'.md','toml':'.toml','text':'.txt','txt':'.txt','':'.txt'}
+    result=[]
+    for index,match in enumerate(re.finditer(r'^```([^\n`]*)\n(.*?)^```[ \t]*$',content,re.MULTILINE|re.DOTALL),1):
+        info=match.group(1).strip()
+        language=info.split()[0].lower() if info else ''
+        code=match.group(2)
+        if not code.strip():continue
+        hint=re.search(r'(?:filename|file|title)=["\']?([^\s"\']+)',info)
+        if hint:
+            name=library_clean_name(hint.group(1))
+        elif language and '.' in language and '/' not in language:
+            name=library_clean_name(language)
+        else:
+            name='Generated_'+hashlib.sha256(content.encode()).hexdigest()[:10]+'_'+str(index)+extensions.get(language,'.txt')
+        data=code.encode('utf-8')
+        mime=mimetypes.guess_type(name)[0] or 'text/plain'
+        result.append({'name':name,'type':mime,'data':data})
+    return result
+
+
+def library_capture_message(message, chat_id=None):
+    """Capture both roles at message creation and migrate older session messages."""
+    import uuid
+    if not isinstance(message,dict):return
+    vault=library_vault()
+    if message.get('_library_synced_vault')==vault:return
+    message.setdefault('_library_message_id',uuid.uuid4().hex)
+    role=message.get('role','user')
+    source=library_chat_source('AI generated' if role=='assistant' else 'User upload',chat_id)
+    files=list(message.get('files',[]))+list(message.get('generated_files',[]))
+    if role=='assistant' and not message.get('_library_code_extracted'):
+        extracted=library_code_files(message.get('content',''))
+        existing={(f.get('name'),hashlib.sha256(f.get('data',b'')).hexdigest()) for f in files if isinstance(f,dict) and isinstance(f.get('data'),bytes)}
+        for f in extracted:
+            if (f['name'],hashlib.sha256(f['data']).hexdigest()) not in existing:
+                message.setdefault('generated_files',[]).append(f)
+                files.append(f)
+        message['_library_code_extracted']=True
+    saved_ok=True
+    for f in files:
+        if not isinstance(f,dict):continue
+        data,mime=library_decode_payload(f.get('data'))
+        if data is None:continue
+        file_id=library_auto_save(f.get('name','Generated file'),f.get('type') or mime,data,source)
+        if file_id:f['library_id']=file_id
+        else:saved_ok=False
+    for value in message.get('images',[]):
+        data,mime=library_decode_payload(value)
+        if data is not None:
+            if not library_save_photo(data,source=source):saved_ok=False
+    if saved_ok:message['_library_synced_vault']=vault
+
+
+def library_render_generated_files(message, chat_id):
+    for index,f in enumerate(message.get('generated_files',[])):
+        if not isinstance(f,dict) or not isinstance(f.get('data'),bytes):continue
+        st.download_button('Download '+f['name'],data=f['data'],file_name=f['name'],mime=f.get('type') or 'application/octet-stream',key='chat_generated_'+str(chat_id)+'_'+message.get('_library_message_id','new')+'_'+str(index))
+
 
 
 def render_library_page():
@@ -1138,13 +1284,14 @@ def render_library_page():
         query = search.text_input("Search Library", placeholder="Search files and photos", label_visibility="collapsed").casefold().strip()
         kind = filter_col.selectbox("Type",["All files","Photos","Documents","Other"])
         sort = sort_col.selectbox("Sort",["Newest first","Oldest first","Name"])
+        origin = st.selectbox("Saved from",["All sources","User uploads","AI generated"],key="lib_origin")
         def category(r):
             if r['mime'].startswith('image/') or r['name'].lower().endswith(('.png','.jpg','.jpeg','.gif','.webp','.bmp')):
                 return 'Photos'
             if r['mime'].startswith('text/') or r['name'].lower().endswith(('.pdf','.doc','.docx','.xlsx','.csv','.pptx','.txt','.md')):
                 return 'Documents'
             return 'Other'
-        visible = [r for r in rows if (not query or query in r['name'].casefold()) and (kind=='All files' or category(r)==kind)]
+        visible = [r for r in rows if (not query or query in (r['name']+' '+library_source_info(r.get('source','')).get('chat_title','')).casefold()) and (kind=='All files' or category(r)==kind) and (origin=='All sources' or library_source_info(r.get('source','')).get('origin')==('User upload' if origin=='User uploads' else 'AI generated'))]
         if sort=='Oldest first': visible.reverse()
         if sort=='Name': visible.sort(key=lambda r:r['name'].casefold())
         st.caption(str(len(rows)) + " saved items · " + f"{sum(r['size'] for r in rows)/1024/1024:.1f} MB")
@@ -1152,18 +1299,27 @@ def render_library_page():
             st.write("No matching files." if rows else "Your Library is ready. Upload a file or photo to start.")
         # Paginate the list and load file bytes only when opening an item.
         pages = max(1,(len(visible)+19)//20)
-        page = int(st.number_input("Page",min_value=1,max_value=pages,value=1,step=1,key="lib_page_" + hashlib.sha256((query+kind+sort+str(pages)).encode()).hexdigest()[:12]))
+        page = int(st.number_input("Page",min_value=1,max_value=pages,value=1,step=1,key="lib_page_" + hashlib.sha256((query+kind+sort+origin+str(pages)).encode()).hexdigest()[:12]))
         for row in visible[(page-1)*20:page*20]:
             col, action = st.columns([5,1],vertical_alignment="center")
             with col:
                 st.write(row['name'])
                 st.caption(category(row) + " · " + f"{row['size']/1024:.0f} KB" + " · " + row['created'][:10])
+                info=library_source_info(row.get('source',''))
+                st.caption(info.get('origin','Saved file') + (' · Chat: '+info['chat_title'] if info.get('chat_title') else ''))
             if action.button("Open",key="lib_open_"+row['id'],use_container_width=True):
                 st.session_state["lib_selected"] = row['id']
         selected = next((r for r in rows if r['id']==st.session_state.get('lib_selected')),None)
         if selected:
             st.divider()
             st.write("**" + _html.escape(selected['name']) + "**")
+            source_info=library_source_info(selected.get('source',''))
+            source_chat=source_info.get('chat_id')
+            if source_chat in st.session_state.get('chat_sessions',{}):
+                if st.button("Open source chat",key="lib_source_chat"):
+                    st.session_state['current_chat']=source_chat
+                    st.session_state['page']='chat'
+                    st.rerun()
             try:
                 data = library_get(selected['id'])
                 if category(selected)=='Photos':
@@ -2535,8 +2691,11 @@ def render_artifacts_page():
 if st.session_state.get("toast"):
     st.toast(st.session_state.pop("toast"))
 
+library_import_session()
+if st.session_state.get("library_save_error") and st.session_state["page"] == "chat":
+    st.warning(st.session_state["library_save_error"])
+
 if st.session_state["page"] == "library":
-    library_import_session()
     render_library_page()
     st.stop()
 
@@ -2603,6 +2762,7 @@ try:
                         st.caption(f"📎 {f['name']}")
                 for img in msg.get("images", []):
                     st.image(img, use_container_width=True)
+                library_render_generated_files(msg,st.session_state["current_chat"])
 
         pending = st.session_state["pending_prompt"]
         if pending is not None:
@@ -2615,6 +2775,7 @@ try:
 
             prompt = pending or "(see attached files)"
             current_messages.append({"role": "user", "content": prompt, "files": files})
+            library_capture_message(current_messages[-1],st.session_state["current_chat"])
 
             with st.chat_message("user"):
                 st.markdown(prompt)
@@ -2629,6 +2790,7 @@ try:
 
             with st.chat_message("assistant"):
                 with st.spinner("Thinking..."):
+                    generated_files = []
                     lower_prompt = prompt.lower()
                     if "switzerland" in lower_prompt or "swiss" in lower_prompt:
                         answer = "Here are some views of Switzerland:"
@@ -2641,17 +2803,20 @@ try:
                         for m in current_messages:
                             messages_payload.append((m["role"], message_text(m)))
                         response = llm.invoke(messages_payload)
-                        answer = response.content
-                        found_images = []
+                        answer, generated_files, found_images = library_response_parts(response.content)
 
+                    assistant_message={"role":"assistant","content":answer,"images":found_images,"generated_files":generated_files}
+                    library_capture_message(assistant_message,st.session_state["current_chat"])
                     st.markdown(answer)
                     for img in found_images:
                         st.image(img, use_container_width=True)
+                    library_render_generated_files(assistant_message,st.session_state["current_chat"])
+                    if st.session_state.get("library_save_error"):
+                        st.warning(st.session_state["library_save_error"])
+                    elif assistant_message.get("generated_files") or found_images:
+                        st.caption("Saved to Library")
 
-            current_messages.append({"role": "assistant", "content": answer, "images": found_images})
-            for photo_bytes in found_images:
-                if isinstance(photo_bytes, bytes):
-                    library_save_photo(photo_bytes)
+            current_messages.append(assistant_message)
 
             # Keep the latest code answer for the Artifacts button, but do NOT split the screen automatically
             if "```" in answer:
