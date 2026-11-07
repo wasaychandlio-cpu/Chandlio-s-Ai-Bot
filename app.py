@@ -602,6 +602,7 @@ TEXT_EXT = (".txt", ".md", ".py", ".csv", ".json", ".js", ".html", ".css", ".xml
 
 # ---------------- HELPERS ----------------
 def add_attachment(name, mime, data):
+    library_auto_save(name, mime, data)
     if not any(a["name"] == name and len(a["data"]) == len(data) for a in st.session_state["attachments"]):
         st.session_state["attachments"].append({"name": name, "type": mime or "", "data": data})
 
@@ -883,6 +884,319 @@ def open_artifact(idx):
         st.session_state["workspace_content"] = items[idx]["content"]
         st.session_state["show_workspace"] = True
         st.session_state["page"] = "chat"
+
+# ---------------- PRIVATE FILE LIBRARY ----------------
+# Default: SQLite on server disk. Set CHANDLIO_LIBRARY_DIR to a persistent mount.
+# Optional permanent cloud storage: create a PRIVATE Supabase Storage bucket,
+# then add the following SERVER-ONLY Streamlit Secrets (never commit the key):
+# [library_storage]
+# supabase_url = "https://YOUR-PROJECT.supabase.co"
+# service_role_key = "YOUR-SERVER-ONLY-KEY"
+# bucket = "chandlio-library"
+# Access keys are bearer credentials: anyone with a key can open that library.
+# This feature does not grant the AI access to files until the user attaches them.
+
+
+def library_access_key():
+    import secrets
+    return st.session_state.setdefault("library_access_key", "clib_" + secrets.token_urlsafe(32))
+
+
+def library_vault():
+    return hashlib.sha256(library_access_key().encode()).hexdigest()
+
+
+def library_cloud_config():
+    try:
+        cfg = dict(st.secrets.get("library_storage", {}))
+    except (FileNotFoundError, KeyError):
+        cfg = {}
+    if cfg:
+        from urllib.parse import urlsplit
+        url = urlsplit(cfg.get("supabase_url", ""))
+        if url.scheme != "https" or not url.hostname or url.username or url.password or not cfg.get("service_role_key") or not cfg.get("bucket"):
+            raise ValueError("Library cloud storage configuration is incomplete.")
+        return cfg
+    return None
+
+
+def library_db():
+    import sqlite3
+    folder = pathlib.Path(os.environ.get("CHANDLIO_LIBRARY_DIR", str(pathlib.Path(__file__).resolve().parent / "chandlio_library_data")))
+    folder.mkdir(parents=True, exist_ok=True, mode=0o700)
+    dbpath = folder / "library.sqlite3"
+    conn = sqlite3.connect(str(dbpath), timeout=20)
+    try:
+        os.chmod(dbpath, 0o600)
+        conn.execute("CREATE TABLE IF NOT EXISTS files (vault TEXT NOT NULL, id TEXT NOT NULL, name TEXT NOT NULL, mime TEXT NOT NULL, size INTEGER NOT NULL, created TEXT NOT NULL, source TEXT NOT NULL, data BLOB NOT NULL, PRIMARY KEY(vault,id))")
+        conn.commit()
+    except Exception:
+        conn.close()
+        raise
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def library_cloud_request(method, route, **kwargs):
+    from urllib.parse import quote
+    cfg = library_cloud_config()
+    headers = {"apikey":cfg["service_role_key"], "Authorization":"Bearer " + cfg["service_role_key"]}
+    headers.update(kwargs.pop("headers", {}))
+    url = cfg["supabase_url"].rstrip("/") + "/storage/v1/" + route.format(bucket=quote(cfg["bucket"], safe=""))
+    response = requests.request(method, url, headers=headers, timeout=40, allow_redirects=False, **kwargs)
+    if not 200 <= response.status_code < 300:
+        raise ValueError("The Library storage service could not complete the request.")
+    return response
+
+
+def library_clean_name(name):
+    name = str(name).replace("\\", "/").split("/")[-1]
+    name = "".join(c for c in name if ord(c) >= 32).strip() or "Untitled file"
+    # Bound Unicode byte length, preserving the extension when possible.
+    if len(name.encode("utf-8")) > 180:
+        ext = pathlib.Path(name).suffix[:20]
+        name = name.encode("utf-8")[:140].decode("utf-8", errors="ignore") + ext
+    return name
+
+
+def library_save(name, mime, data, source="Upload"):
+    from datetime import datetime, timezone
+    import mimetypes
+    if not isinstance(data, (bytes, bytearray)):
+        raise ValueError("File bytes are required.")
+    if len(data) > 50 * 1024 * 1024:
+        raise ValueError("Library files must be 50 MB or smaller.")
+    name = library_clean_name(name)
+    mime = (mime or mimetypes.guess_type(name)[0] or "application/octet-stream").split(";")[0]
+    if "\r" in mime or "\n" in mime:
+        mime = "application/octet-stream"
+    digest = hashlib.sha256(name.encode() + b"\0" + data).hexdigest()
+    encoded = base64.urlsafe_b64encode(name.encode()).decode().rstrip("=")
+    file_id = digest + "--" + encoded
+    vault = library_vault()
+    seen = st.session_state.setdefault("library_saved_in_session", set())
+    marker = vault + ":" + file_id
+    if marker in seen:
+        return file_id
+    if library_cloud_config():
+        # Stable names and upsert keep repeated chat uploads from duplicating files.
+        library_cloud_request("POST", "object/{bucket}/" + vault + "/" + file_id,
+                              data=bytes(data), headers={"Content-Type":mime, "x-upsert":"true"})
+    else:
+        conn = library_db()
+        try:
+            with conn:
+                conn.execute("INSERT OR IGNORE INTO files VALUES (?,?,?,?,?,?,?,?)",
+                             (vault,file_id,name,mime,len(data),datetime.now(timezone.utc).isoformat(),source,bytes(data)))
+        finally:
+            conn.close()
+    seen.add(marker)
+    return file_id
+
+
+def library_list():
+    vault = library_vault()
+    if library_cloud_config():
+        rows = []
+        offset = 0
+        while True:
+            page = library_cloud_request("POST", "object/list/{bucket}", json={"prefix":vault + "/", "limit":100, "offset":offset, "sortBy":{"column":"created_at","order":"desc"}}).json()
+            if not isinstance(page, list):
+                raise ValueError("Invalid Library storage response.")
+            for row in page:
+                file_id = row.get("name", "")
+                if "--" not in file_id or not row.get("id"):
+                    continue
+                try:
+                    encoded = file_id.split("--",1)[1]
+                    name = base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4)).decode()
+                except (ValueError, UnicodeError):
+                    continue
+                metadata = row.get("metadata") or {}
+                rows.append({"id":file_id,"name":name,"mime":metadata.get("mimetype", "application/octet-stream"),"size":int(metadata.get("size",0)),"created":row.get("created_at", ""),"source":"Library"})
+            if len(page) < 100:
+                return rows
+            offset += len(page)
+    conn = library_db()
+    try:
+        return [dict(row) for row in conn.execute("SELECT id,name,mime,size,created,source FROM files WHERE vault=? ORDER BY created DESC",(vault,))]
+    finally:
+        conn.close()
+
+
+def library_get(file_id):
+    from urllib.parse import quote
+    # IDs never accept a caller-controlled directory or a different vault.
+    import re
+    if not re.fullmatch(r"[0-9a-f]{64}--[A-Za-z0-9_-]+", file_id):
+        raise ValueError("Invalid Library file.")
+    if library_cloud_config():
+        r = library_cloud_request("GET", "object/authenticated/{bucket}/" + library_vault() + "/" + quote(file_id, safe=""))
+        return r.content
+    conn = library_db()
+    try:
+        row = conn.execute("SELECT data FROM files WHERE vault=? AND id=?",(library_vault(),file_id)).fetchone()
+        if row is None:
+            raise ValueError("This file is no longer in your Library.")
+        return bytes(row["data"])
+    finally:
+        conn.close()
+
+
+def library_delete(file_id):
+    # Listing first verifies the file belongs to the active library.
+    if not any(row["id"] == file_id for row in library_list()):
+        raise ValueError("File not found in this Library.")
+    if library_cloud_config():
+        library_cloud_request("DELETE", "object/{bucket}", json={"prefixes":[library_vault() + "/" + file_id]})
+    else:
+        conn = library_db()
+        try:
+            with conn:
+                conn.execute("DELETE FROM files WHERE vault=? AND id=?",(library_vault(),file_id))
+        finally:
+            conn.close()
+    st.session_state.setdefault("library_saved_in_session",set()).add(library_vault() + ":" + file_id)
+
+
+def library_auto_save(name, mime, data, source="Chat upload"):
+    try:
+        library_save(name, mime, data, source)
+    except Exception:
+        st.session_state["library_save_error"] = "A file could not be saved to Library. Keep a downloaded copy and check Library storage."
+
+
+def library_import_session():
+    # Bring files already uploaded in this running session into Library, too.
+    for f in st.session_state.get("attachments", []):
+        library_auto_save(f["name"], f.get("type", ""), f["data"])
+    for project in st.session_state.get("projects", {}).values():
+        for f in project.get("files", []):
+            library_auto_save(f["name"], f.get("type", ""), f["data"], "Project")
+    for messages in st.session_state.get("chat_sessions", {}).values():
+        for message in messages:
+            for f in message.get("files", []):
+                library_auto_save(f["name"], f.get("type", ""), f["data"])
+            for image_data in message.get("images", []):
+                if isinstance(image_data, bytes):
+                    library_save_photo(image_data)
+    for artifact in st.session_state.get("artifact_items", []):
+        library_auto_save(artifact.get("title", "Artifact") + ".md", "text/markdown", artifact["content"].encode(), "Artifact")
+
+
+def library_save_photo(data):
+    mime = _sniff_mime(data) or ("image/gif" if data[:3] == b"GIF" else "application/octet-stream")
+    ext = {"image/jpeg":"jpg","image/png":"png","image/webp":"webp","image/gif":"gif"}.get(mime,"bin")
+    library_auto_save("Photo_" + hashlib.sha256(data).hexdigest()[:12] + "." + ext, mime, data, "Chat photo")
+
+
+def render_library_page():
+    st.markdown("""<style>
+    .st-key-library_page .lib-title {font-size:2rem;font-weight:400;margin:10px 0 6px;}
+    .st-key-library_page .lib-note {color:#999;margin-bottom:20px;}
+    .st-key-library_page [data-testid="stExpander"] {border-color:#383838;border-radius:14px;}
+    </style>""",unsafe_allow_html=True)
+    with st.container(key="library_page"):
+        st.markdown("<div class='lib-title'>Library</div><div class='lib-note'>Your files and photos, together in one place.</div>",unsafe_allow_html=True)
+        try:
+            cloud = bool(library_cloud_config())
+        except Exception:
+            st.error("Library cloud storage is not configured correctly. Check the app’s storage settings.")
+            return
+        if cloud:
+            st.caption("Cloud storage · Chat uploads, displayed photos, and code artifacts save automatically.")
+        else:
+            st.info("Files are saved on this server’s disk. Streamlit Cloud can reset that disk. For permanent cloud storage, configure a private storage bucket in the app’s settings.")
+        with st.expander("Keep access to your Library"):
+            st.write("Download your private access key once. Use it to reopen this Library after a refresh or on another browser. Anyone with this key can access its files.")
+            st.download_button("Save my Library access key", data=library_access_key(), file_name="Chandlio_Library_Access_Key.txt", mime="text/plain", key="lib_download_key")
+            with st.form("lib_restore_form"):
+                restore = st.text_input("Open an existing Library", type="password", placeholder="Paste your Library access key")
+                if st.form_submit_button("Open Library"):
+                    import re
+                    if not re.fullmatch(r"clib_[A-Za-z0-9_-]{43}",restore.strip()):
+                        st.error("Enter the complete Library access key.")
+                    else:
+                        st.session_state["library_access_key"] = restore.strip()
+                        st.session_state.pop("lib_selected",None)
+                        st.session_state["lib_upload_nonce"] = st.session_state.get("lib_upload_nonce",0) + 1
+                        st.rerun()
+        uploads = st.file_uploader("Add files or photos", accept_multiple_files=True, key="lib_upload_" + str(st.session_state.get("lib_upload_nonce",0)), help="Up to 50 MB per file. Files are stored without being executed.")
+        for f in uploads or []:
+            try:
+                library_save(f.name,f.type,f.getvalue(),"Library upload")
+            except Exception:
+                st.error("Could not save " + f.name + ". Check file size and storage configuration.")
+        if st.session_state.get("library_save_error"):
+            st.warning(st.session_state["library_save_error"])
+        try:
+            rows = library_list()
+        except Exception:
+            st.error("Could not open Library storage. Your files have not been cleared; check the storage connection.")
+            return
+        search, filter_col, sort_col = st.columns([2,1,1])
+        query = search.text_input("Search Library", placeholder="Search files and photos", label_visibility="collapsed").casefold().strip()
+        kind = filter_col.selectbox("Type",["All files","Photos","Documents","Other"])
+        sort = sort_col.selectbox("Sort",["Newest first","Oldest first","Name"])
+        def category(r):
+            if r['mime'].startswith('image/') or r['name'].lower().endswith(('.png','.jpg','.jpeg','.gif','.webp','.bmp')):
+                return 'Photos'
+            if r['mime'].startswith('text/') or r['name'].lower().endswith(('.pdf','.doc','.docx','.xlsx','.csv','.pptx','.txt','.md')):
+                return 'Documents'
+            return 'Other'
+        visible = [r for r in rows if (not query or query in r['name'].casefold()) and (kind=='All files' or category(r)==kind)]
+        if sort=='Oldest first': visible.reverse()
+        if sort=='Name': visible.sort(key=lambda r:r['name'].casefold())
+        st.caption(str(len(rows)) + " saved items · " + f"{sum(r['size'] for r in rows)/1024/1024:.1f} MB")
+        if not visible:
+            st.write("No matching files." if rows else "Your Library is ready. Upload a file or photo to start.")
+        # Paginate the list and load file bytes only when opening an item.
+        pages = max(1,(len(visible)+19)//20)
+        page = int(st.number_input("Page",min_value=1,max_value=pages,value=1,step=1,key="lib_page_" + hashlib.sha256((query+kind+sort+str(pages)).encode()).hexdigest()[:12]))
+        for row in visible[(page-1)*20:page*20]:
+            col, action = st.columns([5,1],vertical_alignment="center")
+            with col:
+                st.write(row['name'])
+                st.caption(category(row) + " · " + f"{row['size']/1024:.0f} KB" + " · " + row['created'][:10])
+            if action.button("Open",key="lib_open_"+row['id'],use_container_width=True):
+                st.session_state["lib_selected"] = row['id']
+        selected = next((r for r in rows if r['id']==st.session_state.get('lib_selected')),None)
+        if selected:
+            st.divider()
+            st.write("**" + _html.escape(selected['name']) + "**")
+            try:
+                data = library_get(selected['id'])
+                if category(selected)=='Photos':
+                    try:
+                        from PIL import Image
+                        with Image.open(io.BytesIO(data)) as im:
+                            if im.width*im.height>30_000_000:
+                                raise ValueError('Large image')
+                            im.thumbnail((1200,900))
+                            st.image(im.copy(),caption=selected['name'])
+                    except Exception:
+                        st.caption("A preview is unavailable. Download the original file below.")
+                elif selected['mime'].startswith('text/') or selected['name'].lower().endswith(('.py','.json','.js','.html','.css','.csv','.md','.txt')):
+                    st.code(data[:30000].decode('utf-8',errors='replace'),language=None)
+                elif selected['name'].lower().endswith(('.pdf','.docx')):
+                    text=file_to_text({'name':selected['name'],'type':selected['mime'],'data':data})
+                    if text: st.text(text)
+                st.download_button("Download original",data=data,file_name=selected['name'],mime=selected['mime'],key='lib_download_'+selected['id'])
+                if st.button("Attach to chat",key='lib_attach_'+selected['id']):
+                    add_attachment(selected['name'],selected['mime'],data)
+                    st.session_state['page']='chat'
+                    st.rerun()
+                with st.expander("Delete file"):
+                    confirmed=st.checkbox("Delete this file from Library",key='lib_confirm_'+selected['id'])
+                    if st.button("Delete permanently",disabled=not confirmed,key='lib_delete_'+selected['id']):
+                        library_delete(selected['id'])
+                        st.session_state.pop('lib_selected',None)
+                        st.session_state['lib_upload_nonce']=st.session_state.get('lib_upload_nonce',0)+1
+                        st.rerun()
+            except Exception:
+                st.error("This file could not be opened. Check the storage connection and try again.")
+
+
 
 # ---------------- CUSTOMIZE CATALOG ----------------
 # Catalog entries are visible without a model key. External services require
@@ -1681,6 +1995,9 @@ with st.sidebar:
         search_dialog()
     search_q = ""
 
+    st.button("Library", icon=":material/folder_open:", use_container_width=True, key="nav_library",
+              on_click=go_page, args=("library",), type="primary" if _page == "library" else "secondary")
+
     # Projects row: opens the Projects page; a + shows on hover (always while on that page) to create a project
     if _page == "projects":
         st.markdown("<style>.st-key-proj_plus { opacity: 1 !important; }</style>", unsafe_allow_html=True)
@@ -2218,6 +2535,11 @@ def render_artifacts_page():
 if st.session_state.get("toast"):
     st.toast(st.session_state.pop("toast"))
 
+if st.session_state["page"] == "library":
+    library_import_session()
+    render_library_page()
+    st.stop()
+
 if st.session_state["page"] == "customize":
     render_customize_page()
     st.stop()
@@ -2327,6 +2649,9 @@ try:
                         st.image(img, use_container_width=True)
 
             current_messages.append({"role": "assistant", "content": answer, "images": found_images})
+            for photo_bytes in found_images:
+                if isinstance(photo_bytes, bytes):
+                    library_save_photo(photo_bytes)
 
             # Keep the latest code answer for the Artifacts button, but do NOT split the screen automatically
             if "```" in answer:
@@ -2334,6 +2659,7 @@ try:
                 _t = prompt.strip().replace("\n", " ")
                 st.session_state["artifact_items"].append(
                     {"title": (_t[:40] + "…") if len(_t) > 40 else (_t or "Artifact"), "content": answer})
+                library_auto_save(st.session_state["artifact_items"][-1]["title"] + ".md", "text/markdown", answer.encode(), "Artifact")
 
             # Generate a short Claude-style title once per chat, then refresh sidebar + top bar
             chat_key = st.session_state["current_chat"]
