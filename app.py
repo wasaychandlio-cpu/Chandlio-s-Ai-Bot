@@ -1702,3 +1702,327 @@ except Exception as e:
 if st.session_state.get("scroll_bottom"):
     st.session_state["scroll_bottom"] = False
     run_js(SCROLL_JS)
+
+# ============================================================
+# CHANDLIO — COLOUR THEMES ONLY
+# Paste this entire block at the VERY BOTTOM of app.py
+# Existing layout and functionality remain unchanged.
+# ============================================================
+
+CHANDLIO_THEMES = {
+    "Midnight Ember": {
+        "bg": "#191919", "sidebar": "#1f1f1e",
+        "card": "#262626", "input": "#2b2b2b",
+        "border": "#3d3d3d", "text": "#ffffff",
+        "muted": "#a8a8a8", "accent": "#d97757",
+        "hover": "#353535", "user": "#303030",
+    },
+    "Arctic Ocean": {
+        "bg": "#0b1728", "sidebar": "#101f33",
+        "card": "#172b43", "input": "#1e3049",
+        "border": "#30445f", "text": "#f1f5f9",
+        "muted": "#a8b8cc", "accent": "#38bdf8",
+        "hover": "#263d58", "user": "#203b59",
+    },
+    "Royal Amethyst": {
+        "bg": "#191326", "sidebar": "#1d1830",
+        "card": "#291e3d", "input": "#302544",
+        "border": "#49385f", "text": "#f5f0ff",
+        "muted": "#b9add0", "accent": "#a78bfa",
+        "hover": "#382a50", "user": "#352746",
+    },
+    "Cloud Cream": {
+        "bg": "#f4f3ef", "sidebar": "#ebe9e3",
+        "card": "#ffffff", "input": "#ffffff",
+        "border": "#dedbd3", "text": "#242424",
+        "muted": "#77736c", "accent": "#c87555",
+        "hover": "#e8e5de", "user": "#eee6dc",
+    },
+    "Emerald Forest": {
+        "bg": "#101d18", "sidebar": "#14251e",
+        "card": "#1d3027", "input": "#22392f",
+        "border": "#315747", "text": "#ecfdf5",
+        "muted": "#a4c5b3", "accent": "#34d399",
+        "hover": "#294238", "user": "#244034",
+    },
+    "Sunset Copper": {
+        "bg": "#21150f", "sidebar": "#2b1a11",
+        "card": "#382419", "input": "#432a1c",
+        "border": "#61402b", "text": "#fff1e6",
+        "muted": "#cbb09b", "accent": "#f59e52",
+        "hover": "#4a3022", "user": "#4a2e1e",
+    },
+    "Cosmic Rose": {
+        "bg": "#171722", "sidebar": "#211b2b",
+        "card": "#28263a", "input": "#38344d",
+        "border": "#4b465e", "text": "#f4f0ff",
+        "muted": "#bcb1ca", "accent": "#e879c6",
+        "hover": "#40364e", "user": "#382b42",
+    },
+    "Pure Monochrome": {
+        "bg": "#080808", "sidebar": "#111111",
+        "card": "#1d1d1d", "input": "#252525",
+        "border": "#444444", "text": "#ffffff",
+        "muted": "#aaaaaa", "accent": "#e5e5e5",
+        "hover": "#303030", "user": "#292929",
+    },
+}
+
+# Theme selector. This changes colours, not the app's layout.
+_selected_theme = st.sidebar.selectbox(
+    "Appearance",
+    list(CHANDLIO_THEMES.keys()),
+    key="chandlio_theme_choice",
+)
+
+_t = CHANDLIO_THEMES[_selected_theme]
+
+# Apply the selected palette across the existing interface.
+st.markdown(
+    """
+    <style>
+    :root {
+        --ch-bg: __BG__;
+        --ch-sidebar: __SIDEBAR__;
+        --ch-card: __CARD__;
+        --ch-input: __INPUT__;
+        --ch-border: __BORDER__;
+        --ch-text: __TEXT__;
+        --ch-muted: __MUTED__;
+        --ch-accent: __ACCENT__;
+        --ch-hover: __HOVER__;
+        --ch-user: __USER__;
+    }
+
+    /* Main page */
+    html, body, .stApp,
+    [data-testid="stAppViewContainer"],
+    [data-testid="stMain"] {
+        background: var(--ch-bg) !important;
+        color: var(--ch-text) !important;
+    }
+
+    /* Sidebar */
+    [data-testid="stSidebar"],
+    [data-testid="stSidebarContent"] {
+        background: var(--ch-sidebar) !important;
+        border-color: var(--ch-border) !important;
+    }
+
+    [data-testid="stSidebar"] button {
+        color: var(--ch-text) !important;
+    }
+
+    [data-testid="stSidebar"] button:hover {
+        background: var(--ch-hover) !important;
+    }
+
+    [data-testid="stSidebar"] [data-testid="stBaseButton-primary"] {
+        background: var(--ch-card) !important;
+        color: var(--ch-text) !important;
+    }
+
+    .brand, .side-head {
+        color: var(--ch-text) !important;
+    }
+
+    .side-label {
+        color: var(--ch-muted) !important;
+    }
+
+    /* Header and page titles */
+    [data-testid="stHeader"] {
+        background: var(--ch-bg) !important;
+    }
+
+    h1, h2, h3, h4,
+    .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
+        color: var(--ch-text) !important;
+    }
+
+    .hero {
+        color: var(--ch-text) !important;
+    }
+
+    .plan-pill {
+        background: var(--ch-card) !important;
+        border-color: var(--ch-border) !important;
+        color: var(--ch-muted) !important;
+    }
+
+    /* Top chat bar */
+    .topbar {
+        background: var(--ch-bg) !important;
+        border-color: var(--ch-border) !important;
+    }
+
+    .tb-title, .tb-right {
+        color: var(--ch-text) !important;
+    }
+
+    .tb-title svg, .tb-right svg {
+        stroke: var(--ch-text) !important;
+    }
+
+    /* Chat messages */
+    [data-testid="stChatMessage"] {
+        background: transparent !important;
+        color: var(--ch-text) !important;
+    }
+
+    [data-testid="stChatMessage"]:has(
+        [data-testid="stChatMessageAvatarUser"]
+    ) {
+        background: var(--ch-user) !important;
+        border-color: var(--ch-border) !important;
+    }
+
+    [data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] {
+        color: var(--ch-text) !important;
+    }
+
+    /* Chat input */
+    .st-key-inputbar {
+        background: var(--ch-bg) !important;
+    }
+
+    .st-key-pill {
+        background: var(--ch-input) !important;
+        border-color: var(--ch-border) !important;
+    }
+
+    .st-key-inputbar textarea,
+    .st-key-inputbar input {
+        color: var(--ch-text) !important;
+    }
+
+    .st-key-inputbar textarea::placeholder {
+        color: var(--ch-muted) !important;
+    }
+
+    .st-key-inputbar button {
+        color: var(--ch-text) !important;
+    }
+
+    .st-key-inputbar button:hover {
+        background: var(--ch-hover) !important;
+    }
+
+    .mdl-in {
+        color: var(--ch-text) !important;
+    }
+
+    .mdl-in b, .input-foot {
+        color: var(--ch-muted) !important;
+    }
+
+    /* Starter prompt buttons */
+    .st-key-chips button {
+        background: var(--ch-card) !important;
+        border-color: var(--ch-border) !important;
+        color: var(--ch-text) !important;
+    }
+
+    .st-key-chips button:hover {
+        background: var(--ch-hover) !important;
+    }
+
+    /* Cards and containers */
+    .st-key-pill,
+    [data-testid="stPopoverBody"],
+    [data-testid="stDialog"] [role="dialog"] {
+        background-color: var(--ch-card) !important;
+        border-color: var(--ch-border) !important;
+        color: var(--ch-text) !important;
+    }
+
+    /* General inputs */
+    input, textarea,
+    [data-baseweb="input"],
+    [data-baseweb="textarea"] {
+        background-color: var(--ch-input) !important;
+        color: var(--ch-text) !important;
+        border-color: var(--ch-border) !important;
+    }
+
+    /* Select boxes */
+    [data-baseweb="select"] > div {
+        background: var(--ch-input) !important;
+        border-color: var(--ch-border) !important;
+        color: var(--ch-text) !important;
+    }
+
+    /* Main buttons */
+    [data-testid="stMain"] button {
+        border-color: var(--ch-border) !important;
+    }
+
+    /* Popovers and menus */
+    [data-testid="stPopoverBody"] {
+        background: var(--ch-card) !important;
+        border-color: var(--ch-border) !important;
+    }
+
+    [data-testid="stPopoverBody"] button {
+        color: var(--ch-text) !important;
+    }
+
+    [data-testid="stPopoverBody"] button:hover {
+        background: var(--ch-hover) !important;
+    }
+
+    /* Dialogs */
+    [data-testid="stDialog"] [role="dialog"] {
+        background: var(--ch-card) !important;
+        color: var(--ch-text) !important;
+        border: 1px solid var(--ch-border) !important;
+    }
+
+    /* Search */
+    .srch-label, .srch-empty {
+        color: var(--ch-muted) !important;
+    }
+
+    .srch-foot {
+        color: var(--ch-muted) !important;
+        border-color: var(--ch-border) !important;
+    }
+
+    /* Scrollbar */
+    [data-testid="stMain"]::-webkit-scrollbar {
+        background: var(--ch-bg) !important;
+    }
+
+    [data-testid="stMain"]::-webkit-scrollbar-track {
+        background: var(--ch-bg) !important;
+    }
+
+    [data-testid="stMain"]::-webkit-scrollbar-thumb {
+        background: var(--ch-muted) !important;
+        border-color: var(--ch-bg) !important;
+    }
+
+    /* Accent colour */
+    a, .stMarkdown a {
+        color: var(--ch-accent) !important;
+    }
+
+    [data-testid="stSidebar"] button:focus-visible,
+    [data-testid="stMain"] button:focus-visible {
+        outline-color: var(--ch-accent) !important;
+    }
+    </style>
+    """.replace("__BG__", _t["bg"])
+       .replace("__SIDEBAR__", _t["sidebar"])
+       .replace("__CARD__", _t["card"])
+       .replace("__INPUT__", _t["input"])
+       .replace("__BORDER__", _t["border"])
+       .replace("__TEXT__", _t["text"])
+       .replace("__MUTED__", _t["muted"])
+       .replace("__ACCENT__", _t["accent"])
+       .replace("__HOVER__", _t["hover"])
+       .replace("__USER__", _t["user"]),
+    unsafe_allow_html=True,
+)
+
+# ================= END CHANDLIO THEMES =================
