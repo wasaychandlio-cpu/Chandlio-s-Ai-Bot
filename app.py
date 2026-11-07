@@ -1015,6 +1015,50 @@ def settings_dialog():
       .st-key-settings_content{padding:14px 10px !important;}
       .settings-row{grid-template-columns:1fr;gap:8px;}
     }
+    /* Give both panes a definite scroll height, independent of wrapper heights. */
+    [data-testid="stDialog"]:has(.st-key-settings_shell) {
+        --settings-pane-height:calc(min(82vh, 820px) - 80px);
+    }
+    .st-key-settings_shell, .st-key-settings_body {
+        height:auto !important; min-height:0 !important;
+    }
+    .st-key-settings_body > [data-testid="stHorizontalBlock"] {
+        align-items:flex-start !important; gap:0 !important;
+    }
+    .st-key-settings_body > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+        min-height:0 !important; min-width:0 !important;
+    }
+    .st-key-settings_nav, .st-key-settings_content {
+        height:var(--settings-pane-height) !important;
+        max-height:var(--settings-pane-height) !important;
+        min-height:0 !important; box-sizing:border-box !important;
+        overflow-y:scroll !important; overflow-x:hidden !important;
+        scrollbar-width:auto; scrollbar-color:#666 #1f1f1f;
+        scrollbar-gutter:stable; overscroll-behavior:contain;
+    }
+    .st-key-settings_nav::-webkit-scrollbar,
+    .st-key-settings_content::-webkit-scrollbar {width:9px;}
+    .st-key-settings_nav::-webkit-scrollbar-thumb,
+    .st-key-settings_content::-webkit-scrollbar-thumb {background:#666;border-radius:8px;}
+    .st-key-settings_nav [data-testid="stVerticalBlock"],
+    .st-key-settings_content [data-testid="stVerticalBlock"] {
+        min-height:0 !important; height:auto !important;
+        justify-content:flex-start !important; gap:8px !important;
+    }
+    .st-key-settings_nav button {min-height:36px !important; padding:6px 10px !important;}
+    .st-key-settings_nav button p {white-space:normal !important; overflow:visible !important;}
+    .st-key-settings_nav [data-testid="stDivider"] {margin:6px 0 !important;}
+    .st-key-settings_nav [data-testid="stDivider"] hr {margin:6px 0 !important;}
+    .st-key-settings_content h3 {font-size:1.1rem !important; margin:0 0 14px !important;}
+    .st-key-settings_content > [data-testid="stVerticalBlock"] > [data-testid="stHorizontalBlock"] {
+        min-height:52px !important; align-items:center !important;
+    }
+    .st-key-settings_content [data-testid="stDivider"] hr {margin:4px 0 !important;}
+    @media(max-width:760px) {
+        [data-testid="stDialog"]:has(.st-key-settings_shell) {
+            --settings-pane-height:calc(90vh - 80px);
+        }
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -1022,7 +1066,7 @@ def settings_dialog():
         with st.container(key="settings_body"):
             nav_col, content_col = st.columns([0.92, 3.08], gap="small")
             with nav_col:
-                with st.container(key="settings_nav"):
+                with st.container(key="settings_nav", height=600, border=False):
                     st.text_input("Search", key="settings_search", placeholder="Search", label_visibility="collapsed")
                     q = st.session_state.get("settings_search", "").strip().lower()
                     shown = [x for x in sections if not q or q in x.lower()]
@@ -1030,7 +1074,7 @@ def settings_dialog():
                         icons = {"Account":":material/person_outline:","Billing":":material/credit_card:","Appearance":":material/palette:",
                                  "Your Chandlio":":material/psychology:","Capabilities":":material/work:","Notifications":":material/notifications:",
                                  "Privacy":":material/shield:","Wellbeing":":material/favorite_border:","Customize":":material/tune:","Code":":material/code:"}
-                        if section in ("Appearance", "Customize", "Code"):
+                        if section in ("Appearance", "Customize"):
                             st.divider()
                         if st.button(section, key="settings_section_" + section,
                                      icon=icons[section],
@@ -1038,7 +1082,7 @@ def settings_dialog():
                                      use_container_width=True):
                             st.session_state["settings_section"] = section
             with content_col:
-                with st.container(key="settings_content"):
+                with st.container(key="settings_content", height=600, border=False):
                     section = st.session_state.get("settings_section", "Account")
                     st.subheader("Profile" if section == "Account" else section)
                     if section == "Account":
