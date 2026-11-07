@@ -387,6 +387,17 @@ html[data-sbcollapsed] .st-key-account_wrap { display: none !important; }
 .st-key-art_tabs [data-testid^="stBaseButton-segmented"][aria-pressed="true"],
 .st-key-art_tabs [data-testid^="stBaseButton-segmented"][aria-checked="true"] { background: #3a3a3a !important; color: #fff !important; }
 
+/* Project card hit area: keep the card's existing visual design. */
+[class*="st-key-pcard_"] [class*="st-key-pbtn_"] {
+    position:absolute !important;inset:0 !important;width:100% !important;
+    height:100% !important;margin:0 !important;z-index:2 !important;
+}
+[class*="st-key-pcard_"] [class*="st-key-pbtn_"] button {
+    position:absolute !important;inset:0 !important;min-height:100% !important;
+    width:100% !important;height:100% !important;opacity:0 !important;cursor:pointer;
+}
+[class*="st-key-pcard_"]:focus-within .pcard {outline:2px solid #8ea4ff;outline-offset:2px;}
+
 /* "Create a project" popup */
 [data-testid="stDialog"] [role="dialog"]:has(.st-key-np_wrap) { width: 520px !important; padding: 22px 24px 22px 24px !important;
     background: #2b2b2b !important; border-radius: 16px !important; }
@@ -774,6 +785,8 @@ def build_system_prompt():
         base += f"\n\nThis chat belongs to the project '{proj}'."
         if p["description"]:
             base += f" Project description: {p['description']}"
+        if p.get("instructions"):
+            base += "\n\nProject instructions: " + p["instructions"]
         for f in p["files"]:
             t = file_to_text(f, 4000)
             if t:
@@ -848,6 +861,8 @@ def send_message():
     if text or st.session_state["attachments"]:
         st.session_state["pending_prompt"] = text
         st.session_state["msg_box"] = ""
+        if st.session_state.get("page") == "project":
+            st.session_state["page"] = "chat"
 
 def remove_attachment(i):
     if 0 <= i < len(st.session_state["attachments"]):
@@ -929,9 +944,31 @@ def toggle_proj_sort():
     st.session_state["proj_sort"] = "name" if st.session_state["proj_sort"] == "recent" else "recent"
 
 def open_project(name):
-    link_chat_to_project(name)
-    st.session_state["page"] = "chat"
-    st.session_state["toast"] = f"This chat is now linked to project '{name}'."
+    """Open a project workspace without moving unrelated conversations into it."""
+    state=st.session_state
+    if name not in state["projects"]:
+        return
+    previous_chat=state["current_chat"]
+    drafts=[cid for cid,messages in state["chat_sessions"].items() if not messages and state["chat_project"].get(cid)==name]
+    if drafts:
+        draft=drafts[-1]
+    else:
+        number=len(state["chat_sessions"])+1
+        draft=f"Chat {number}"
+        while draft in state["chat_sessions"]:
+            number+=1
+            draft=f"Chat {number}"
+        state["chat_sessions"][draft]=[]
+        state["chat_project"][draft]=name
+    state["current_chat"]=draft
+    state["selected_project"]=name
+    state["page"]="project"
+    state["show_workspace"]=False
+    if previous_chat!=draft:
+        state["msg_box"]=""
+        state["attachments"]=[]
+        state["panel"]=None
+
 
 def open_artifact(idx):
     items = st.session_state["artifact_items"]
@@ -2214,7 +2251,7 @@ with st.sidebar:
         st.markdown("<style>.st-key-proj_plus { opacity: 1 !important; }</style>", unsafe_allow_html=True)
     with st.container(key="proj_row"):
         st.button("Projects", icon=":material/inventory_2:", use_container_width=True, key="nav_projects",
-                  on_click=go_page, args=("projects",), type="primary" if _page == "projects" else "secondary")
+                  on_click=go_page, args=("projects",), type="primary" if _page in ("projects", "project") else "secondary")
         with st.container(key="proj_plus"):
             st.button(" ", icon=":material/add:", key="nav_projects_plus", on_click=go_projects_and_new)
 
@@ -2596,6 +2633,77 @@ def render_starter_chips():
             with col:
                 st.button(label, icon=icon, key=f"chip_{label}", on_click=set_starter, args=(text,))
 
+def open_project_chat(chat_id):
+    if chat_id not in st.session_state['chat_sessions']:
+        return
+    st.session_state['current_chat']=chat_id
+    st.session_state['page']='chat'
+    st.session_state['show_workspace']=False
+
+
+def render_project_workspace():
+    name=st.session_state.get('selected_project')
+    if name not in st.session_state['projects']:
+        st.session_state['page']='projects'
+        st.rerun()
+    project=st.session_state['projects'][name]
+    project.setdefault('instructions','')
+    project.setdefault('files',[])
+    project_token=hashlib.sha256(name.encode()).hexdigest()[:16]
+    st.markdown('''<style>
+    .st-key-project_workspace {padding:0 0 32px;}
+    .st-key-project_workspace .project-name {font-family:var(--serif);font-size:2rem;font-weight:400;color:#f2f2f2;margin:20px 0 6px;}
+    .st-key-project_workspace .project-description {color:#aaa;margin:0 0 26px;font-size:1rem;}
+    .st-key-project_workspace .st-key-inputbar {position:static !important;margin:0 !important;max-width:none !important;width:100% !important;padding:0 !important;}
+    .st-key-project_workspace .st-key-inputbar .input-foot {display:none;}
+    .st-key-project_workspace .st-key-chips {display:none;}
+    .st-key-project_workspace .project-empty {color:#999;text-align:center;padding:60px 12px;line-height:1.6;}
+    .st-key-project_details {background:#1b1b1b;border:1px solid #303030;border-radius:18px;padding:18px;}
+    .st-key-project_details [data-testid="stExpander"] {background:transparent;border:0;}
+    .st-key-project_workspace .st-key-project_back button {background:transparent;border:0;padding-left:0;}
+    .st-key-project_details [data-testid="stFileUploader"] {background:transparent;}
+    </style>''',unsafe_allow_html=True)
+    with st.container(key='project_workspace'):
+        with st.container(key='project_back'):
+            st.button('Projects  /  '+name,key='project_back_button',on_click=go_page,args=('projects',))
+        st.markdown('<div class="project-name">'+_html.escape(name)+'</div>',unsafe_allow_html=True)
+        if project.get('description'):
+            st.markdown('<div class="project-description">'+_html.escape(project['description'])+'</div>',unsafe_allow_html=True)
+        chat_column,details_column=st.columns([1.65,1],gap='large')
+        with chat_column:
+            render_input_bar()
+            if not st.session_state['stored_groq_key']:
+                st.caption('Add your Groq API key in Settings to receive AI replies.')
+            conversations=[cid for cid,msgs in st.session_state['chat_sessions'].items() if msgs and st.session_state['chat_project'].get(cid)==name]
+            if conversations:
+                st.markdown('#### Chats')
+                for cid in reversed(conversations):
+                    st.button(chat_title(cid),key='project_chat_'+hashlib.sha256(cid.encode()).hexdigest()[:16],icon=':material/chat_bubble_outline:',use_container_width=True,on_click=open_project_chat,args=(cid,))
+            else:
+                st.markdown('<div class="project-empty">'+AI_NAME+' uses this project’s instructions and context each time you start a chat here.</div>',unsafe_allow_html=True)
+        with details_column:
+            with st.container(key='project_details'):
+                st.markdown('#### Instructions')
+                with st.expander('Add or edit instructions'):
+                    instructions=st.text_area('Project instructions',value=project['instructions'],key='project_instructions_'+project_token,placeholder='Tell '+AI_NAME+' how to respond in this project.')
+                    if st.button('Save instructions',key='project_save_instructions'):
+                        project['instructions']=instructions.strip()
+                        st.success('Instructions saved.')
+                st.divider()
+                st.markdown('#### Context')
+                st.caption('Add PDFs, documents, photos, or other files to reference in this project.')
+                uploads=st.file_uploader('Add context files',accept_multiple_files=True,key='project_context_'+project_token,label_visibility='collapsed')
+                for uploaded in uploads or []:
+                    data=uploaded.getvalue()
+                    if not any(f['name']==uploaded.name and f['data']==data for f in project['files']):
+                        project['files'].append({'name':uploaded.name,'type':uploaded.type or '', 'data':data})
+                    library_auto_save(uploaded.name,uploaded.type,data,'Project')
+                for f in project['files']:
+                    st.caption('📎 '+f['name'])
+                if project['files']:
+                    st.caption(str(len(project['files']))+' context file'+('s' if len(project['files'])!=1 else ''))
+
+
 # ---------------- PROJECTS PAGE (from the video) ----------------
 _PROJECTS_EMPTY_SVG = ('<svg width="60" height="60" viewBox="0 0 64 64"><rect x="6" y="8" width="20" height="20" rx="1"/>'
                        '<rect x="30" y="8" width="20" height="20" rx="1"/><rect x="6" y="32" width="20" height="20" rx="1"/>'
@@ -2650,7 +2758,7 @@ def render_projects_page():
                             f"<div class='pc-desc'>{desc}</div>"
                             f"<div class='pc-meta'>{nfiles} file{'s' if nfiles != 1 else ''}</div></div>",
                             unsafe_allow_html=True)
-                        st.button(" ", key=f"pbtn_{i}", on_click=open_project, args=(name,))
+                        st.button(name, key=f"pbtn_{i}", on_click=open_project, args=(name,), use_container_width=True)
 
 # ---------------- ARTIFACTS PAGE (from the video) ----------------
 _ARTIFACTS_EMPTY_SVG = ('<svg width="60" height="60" viewBox="0 0 64 64"><path d="M6 56 22 10l16 46z"/>'
@@ -2750,6 +2858,10 @@ library_import_session()
 if st.session_state.get("library_save_error") and st.session_state["page"] == "chat":
     st.warning(st.session_state["library_save_error"])
 
+if st.session_state["page"] == "project":
+    render_project_workspace()
+    st.stop()
+
 if st.session_state["page"] == "library":
     render_library_page()
     st.stop()
@@ -2796,7 +2908,7 @@ try:
         current_messages = st.session_state["chat_sessions"][st.session_state["current_chat"]]
         proj_name = st.session_state["chat_project"].get(st.session_state["current_chat"])
         if proj_name:
-            st.caption(f"📁 Project: {proj_name}")
+            st.button(f"📁 Project: {proj_name}", key="chat_project_back", on_click=open_project, args=(proj_name,))
 
         if not current_messages and st.session_state["pending_prompt"] is None:
             with st.container(key="plan_wrap"):
