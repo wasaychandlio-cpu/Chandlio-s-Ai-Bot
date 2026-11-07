@@ -276,7 +276,7 @@ defaults = {
     "show_all_chats": False,
     "scroll_bottom": False,       # when True, the page scrolls to the newest message
     "show_settings": False,
-    "settings_section": "Appearance",
+    "settings_section": "Account",
     "theme_choice": "Midnight Ember",
     "custom_instructions": "",
     "notifications_enabled": True,
@@ -562,12 +562,19 @@ with st.sidebar:
         st.button("Show less" if st.session_state["show_all_chats"] else "View all", key="view_all",
                   use_container_width=True, on_click=toggle_state, args=("show_all_chats",))
 
+    # Account area stays at the bottom of the navigation panel.
+    # Settings is opened from this account area, matching the supplied reference.
     st.markdown("<div class='side-label'></div>", unsafe_allow_html=True)
-    if st.button("Settings", icon=":material/settings:", use_container_width=True, key="open_chandlio_settings"):
-        st.session_state["show_settings"] = True
-        st.rerun()
-    with st.expander("Chandlio · Free", icon=":material/settings:",
-                     expanded=not st.session_state["stored_groq_key"]):
+    with st.expander("Chandlio · Free", icon=":material/account_circle:",
+                     expanded=False):
+        st.caption("My account")
+        if st.button("Settings", icon=":material/settings:", use_container_width=True,
+                     key="open_chandlio_settings"):
+            st.session_state["show_settings"] = True
+            st.session_state["settings_section"] = "Account"
+            st.rerun()
+        st.divider()
+        st.caption("Model connection")
         user_groq_key = st.text_input("Groq API Key", value=st.session_state["stored_groq_key"],
                                       type="password", placeholder="gsk_...")
         if user_groq_key:
@@ -636,7 +643,7 @@ a,.stMarkdown a {color:var(--ch-accent)!important;}
 if hasattr(st, "dialog"):
     @st.dialog("Chandlio Settings", width="large")
     def render_chandlio_settings():
-        sections = ["Account", "Appearance", "Your Chandlio", "Capabilities", "Notifications", "Privacy", "Wellbeing", "Customize", "Code"]
+        sections = ["Account", "Billing", "Appearance", "Your Chandlio", "Capabilities", "Notifications", "Privacy", "Wellbeing", "Customize", "Code"]
         left, right = st.columns([1, 2.7], gap="large")
         with left:
             st.text_input("Search settings", key="settings_search", placeholder="Search settings…")
@@ -652,6 +659,12 @@ if hasattr(st, "dialog"):
                 st.caption("Your Chandlio workspace account")
                 st.info("This version runs with the existing local Streamlit session. Account sign-in and cross-device account management are not connected yet.")
                 st.text_input("Workspace name", value="Chandlio", disabled=True)
+                st.caption("Account settings are shown here. Sign-in and profile synchronization are not connected in this version.")
+            elif section == "Billing":
+                st.caption("Chandlio plan")
+                st.markdown("**Chandlio · Free**")
+                st.write("You are using the existing free app configuration.")
+                st.info("Billing, subscriptions and payment management are not connected in this version.")
             elif section == "Appearance":
                 st.caption("Choose how Chandlio looks. Your page layout and chat structure stay the same.")
                 st.selectbox("Colour theme", list(CHANDLIO_THEMES.keys()), key="theme_choice")
