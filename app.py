@@ -408,6 +408,61 @@ html[data-sbcollapsed] .st-key-account_wrap { display: none !important; }
 .st-key-np_create button { background: #f5f4ef !important; color: #191919 !important; }
 .st-key-np_create button p { color: #191919 !important; }
 
+/* Project-only background and action alignment (reference recording). */
+[data-testid="stDialog"]:has(.st-key-np_wrap) {
+    position:fixed !important;inset:0 !important;display:flex !important;
+    align-items:center !important;justify-content:center !important;
+    padding:16px !important;box-sizing:border-box !important;
+    background:rgba(0,0,0,.62) !important;overflow:hidden !important;
+}
+[data-testid="stDialog"]:has(.st-key-np_wrap) > :has(.st-key-np_wrap) {
+    position:relative !important;flex:0 1 520px !important;
+    width:min(520px,calc(100vw - 32px)) !important;max-width:520px !important;min-width:0 !important;
+    height:auto !important;min-height:0 !important;max-height:calc(100dvh - 32px) !important;
+    margin:0 auto !important;padding:0 !important;background:transparent !important;
+    border:0 !important;box-shadow:none !important;border-radius:14px !important;overflow:hidden !important;
+}
+[data-testid="stDialog"] [role="dialog"]:has(.st-key-np_wrap) {
+    width:100% !important;max-width:520px !important;min-width:0 !important;
+    margin:0 !important;box-sizing:border-box !important;position:relative !important;
+    height:auto !important;max-height:calc(100dvh - 32px) !important;overflow-y:auto !important;
+    background:#303030 !important;border:1px solid #3b3b3b !important;border-radius:14px !important;
+    padding:16px !important;
+}
+[data-testid="stDialog"] [data-testid="stDialogContent"]:has(.st-key-np_wrap) {
+    padding:0 !important;background:transparent !important;height:auto !important;
+}
+.st-key-np_wrap input,.st-key-np_wrap textarea,
+.st-key-np_wrap [data-baseweb="input"],.st-key-np_wrap [data-baseweb="textarea"],
+.st-key-np_wrap [data-baseweb="base-input"] {
+    background:#3b3b3b !important;border-color:#484848 !important;
+}
+.st-key-np_wrap [data-testid="stHorizontalBlock"] {
+    align-items:center !important;flex-wrap:nowrap !important;gap:10px !important;
+}
+.st-key-np_wrap [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+    min-width:0 !important;
+}
+.st-key-np_wrap [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-last-child(2) {
+    flex:0 0 72px !important;width:72px !important;
+}
+.st-key-np_wrap [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:last-child {
+    flex:0 0 126px !important;width:126px !important;
+}
+.st-key-np_cancel button,.st-key-np_create button {
+    height:32px !important;min-height:32px !important;padding:0 10px !important;
+    display:flex !important;align-items:center !important;justify-content:center !important;
+    box-sizing:border-box !important;
+}
+.st-key-np_cancel button p,.st-key-np_create button p {
+    white-space:nowrap !important;line-height:1.2 !important;margin:0 !important;
+}
+.st-key-np_cancel button {background:#4a4a4a !important;color:#f2f2f2 !important;}
+.st-key-np_create button {background:#eeeeee !important;color:#191919 !important;}
+.st-key-pj_empty button {background:#3a3a3a !important;color:#f2f2f2 !important;}
+.st-key-pj_empty button p {color:#f2f2f2 !important;}
+.st-key-pj_empty button:hover {background:#454545 !important;}
+
 /* ---------- fixes: search popup + artifacts tabs on newer Streamlit versions ---------- */
 [data-testid="stDialog"] [role="dialog"]:has(.st-key-srch_head) { background: #2f2f2f !important; border-radius: 20px !important;
     padding: 0 !important; width: 720px !important; max-width: 94vw !important; margin: 0 auto !important; overflow: hidden !important; }
@@ -2005,7 +2060,7 @@ def newproject_dialog():
         name = st.text_input("What are you working on?", key="np_name", placeholder="Name your project")
         desc = st.text_area("What are you trying to achieve?", key="np_desc", height=90,
                             placeholder="Describe your project, goals, subject, etc...")
-        _gap, b1, b2 = st.columns([5, 1.4, 2.2])
+        _gap, b1, b2 = st.columns([5, 1.4, 2.2], vertical_alignment="center")
         with b1:
             with st.container(key="np_cancel"):
                 cancel = st.button("Cancel", key="np_cancel_btn", use_container_width=True)
