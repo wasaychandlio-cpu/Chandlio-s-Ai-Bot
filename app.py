@@ -2243,10 +2243,6 @@ with st.sidebar:
         st.session_state["show_workspace"] = False
         st.rerun()
 
-    if st.button("Search", icon=":material/search:", use_container_width=True, key="nav_search"):
-        st.session_state["search_q"] = ""
-        st.session_state["search_tab"] = "All"
-        search_dialog()
     search_q = ""
 
     st.button("Library", icon=":material/folder_open:", use_container_width=True, key="nav_library",
