@@ -943,6 +943,12 @@ def go_projects_and_new():
 def toggle_proj_sort():
     st.session_state["proj_sort"] = "name" if st.session_state["proj_sort"] == "recent" else "recent"
 
+def toggle_project_pin(name):
+    project=st.session_state['projects'].get(name)
+    if project is not None:
+        project['pinned']=not project.get('pinned',False)
+
+
 def open_project(name):
     """Open a project workspace without moving unrelated conversations into it."""
     state=st.session_state
@@ -2263,6 +2269,12 @@ with st.sidebar:
     st.button("Customize", icon=":material/work:", use_container_width=True, key="nav_customize",
               on_click=go_page, args=("customize",), type="primary" if _page == "customize" else "secondary")
 
+    pinned_projects=[(name,project) for name,project in st.session_state['projects'].items() if project.get('pinned')]
+    if pinned_projects:
+        st.markdown("<div class='side-head'>Pinned &#9662;</div>",unsafe_allow_html=True)
+        for pinned_name,_project in pinned_projects:
+            st.button(pinned_name,icon=":material/inventory_2:",key="pinned_project_"+hashlib.sha256(pinned_name.encode()).hexdigest()[:16],use_container_width=True,on_click=open_project,args=(pinned_name,),type="primary" if _page=="project" and st.session_state.get("selected_project")==pinned_name else "secondary")
+
     st.markdown(f"<div class='side-head'><span>Chats and tasks &#9662;</span>{FILTER_SVG}</div>",
                 unsafe_allow_html=True)
 
@@ -2650,58 +2662,135 @@ def render_project_workspace():
     project.setdefault('instructions','')
     project.setdefault('files',[])
     project_token=hashlib.sha256(name.encode()).hexdigest()[:16]
+    instruction_flag='project_edit_instructions_'+project_token
+    context_flag='project_add_context_'+project_token
+    st.session_state.setdefault(instruction_flag,False)
+    st.session_state.setdefault(context_flag,False)
     st.markdown('''<style>
-    .st-key-project_workspace {padding:0 0 32px;}
-    .st-key-project_workspace .project-name {font-family:var(--serif);font-size:2rem;font-weight:400;color:#f2f2f2;margin:20px 0 6px;}
-    .st-key-project_workspace .project-description {color:#aaa;margin:0 0 26px;font-size:1rem;}
-    .st-key-project_workspace .st-key-inputbar {position:static !important;margin:0 !important;max-width:none !important;width:100% !important;padding:0 !important;}
-    .st-key-project_workspace .st-key-inputbar .input-foot {display:none;}
-    .st-key-project_workspace .st-key-chips {display:none;}
-    .st-key-project_workspace .project-empty {color:#999;text-align:center;padding:60px 12px;line-height:1.6;}
-    .st-key-project_details {background:#1b1b1b;border:1px solid #303030;border-radius:18px;padding:18px;}
-    .st-key-project_details [data-testid="stExpander"] {background:transparent;border:0;}
-    .st-key-project_workspace .st-key-project_back button {background:transparent;border:0;padding-left:0;}
-    .st-key-project_details [data-testid="stFileUploader"] {background:transparent;}
+    /* These layout overrides apply only while a project workspace is open. */
+    [data-testid="stMainBlockContainer"]:has(.st-key-project_workspace) {
+        max-width:none !important;width:100% !important;margin:0 !important;
+        padding:0 24px 28px !important;
+    }
+    [data-testid="stMainBlockContainer"]:has(.st-key-project_workspace) > [data-testid="stVerticalBlock"] {
+        gap:0 !important;justify-content:flex-start !important;min-height:0 !important;
+    }
+    .st-key-project_workspace {padding:0 0 32px !important;gap:0 !important;}
+    .st-key-project_back {border-bottom:1px solid #303030;margin:0 -24px 24px;padding:4px 16px;}
+    .st-key-project_back button {background:transparent !important;border:0 !important;min-height:36px !important;}
+    .st-key-project_header [data-testid="stHorizontalBlock"] {align-items:center !important;flex-wrap:nowrap !important;}
+    .st-key-project_header [data-testid="stColumn"] {min-width:0 !important;}
+    .st-key-project_workspace .project-name {font-family:Georgia,'Times New Roman',serif;font-size:1.8rem;font-weight:400;color:#f2f2f2;margin:0 0 8px;line-height:1.25;}
+    .st-key-project_workspace .project-description {color:#aaa;margin:0 0 32px;font-size:1rem;line-height:1.5;}
+    .st-key-project_header button,.st-key-project_header [data-testid="stPopover"] button {
+        background:transparent !important;border:0 !important;padding:4px !important;min-height:28px !important;
+    }
+    .st-key-project_header [data-testid="stPopover"] button svg {display:none;}
+    .st-key-project_content > [data-testid="stHorizontalBlock"] {align-items:flex-start !important;}
+    .st-key-project_workspace .st-key-inputbar {position:static !important;margin:0 !important;max-width:none !important;width:100% !important;padding:0 !important;background:transparent !important;}
+    .st-key-project_workspace .st-key-pill {border-radius:16px !important;padding:8px 12px !important;box-shadow:none !important;}
+    .st-key-project_workspace .st-key-inputbar .input-foot,.st-key-project_workspace .st-key-chips {display:none !important;}
+    .st-key-project_workspace .st-key-mode_wrap [data-testid="stButtonGroup"],
+    .st-key-project_workspace .st-key-mode_wrap [role="radiogroup"],
+    .st-key-project_workspace .st-key-mode_wrap [data-testid="stButtonGroup"] > div {
+        display:flex !important;flex-direction:row !important;flex-wrap:nowrap !important;
+        width:max-content !important;max-width:none !important;gap:2px !important;
+    }
+    .st-key-project_workspace .st-key-mode_wrap button,
+    .st-key-project_workspace .st-key-mode_wrap [role="radiogroup"] label {
+        white-space:nowrap !important;flex:0 0 auto !important;padding:0 8px !important;
+        min-height:28px !important;line-height:28px !important;
+    }
+    .st-key-project_workspace .st-key-mode_wrap button {
+        background:transparent !important;color:#ddd !important;border-color:transparent !important;
+    }
+    .st-key-project_workspace .st-key-mode_wrap button[aria-pressed="true"],
+    .st-key-project_workspace .st-key-mode_wrap button[aria-checked="true"],
+    .st-key-project_workspace .st-key-mode_wrap button[data-testid*="Active"] {
+        background:#4a4a4a !important;color:#f2f2f2 !important;border:1px solid #686868 !important;
+    }
+    .st-key-project_workspace .st-key-pill > [data-testid="stHorizontalBlock"] > [data-testid="stColumn"]:nth-child(2) {
+        flex:0 0 128px !important;width:128px !important;min-width:128px !important;
+    }
+    .st-key-project_workspace .project-empty {color:#999;text-align:center;padding:88px 8px 24px;line-height:1.6;font-size:.95rem;}
+    .st-key-project_workspace .project-empty svg {display:block;margin:0 auto 16px;}
+    .st-key-project_details {background:#191919 !important;border:1px solid #292929;border-radius:16px;padding:18px 20px;gap:8px !important;}
+    .st-key-project_details .project-section-label {font-size:1rem;font-weight:400;line-height:1.4;color:#aaa;}
+    .st-key-project_details .project-instruction-summary {font-size:.88rem;color:#8e8e8e;line-height:1.45;margin-bottom:2px;}
+    .st-key-project_details [data-testid="stHorizontalBlock"] {align-items:center !important;flex-wrap:nowrap !important;}
+    .st-key-project_details [data-testid="stColumn"] {min-width:0 !important;}
+    .st-key-project_details [class*="st-key-project_plus_"] button {border:0 !important;background:transparent !important;width:28px !important;min-height:28px !important;padding:0 !important;}
+    .st-key-project_details [data-testid="stDivider"] hr {margin:12px -20px !important;border-color:#292929 !important;}
+    .st-key-project_context_empty {position:relative;}
+    .st-key-project_context_empty .project-context-card {background:#0c0c0c;border-radius:16px;padding:24px 14px;text-align:center;min-height:150px;box-sizing:border-box;color:#999;font-size:.9rem;line-height:1.45;}
+    .st-key-project_context_empty .project-context-card svg {display:block;margin:0 auto 14px;}
+    .st-key-project_context_empty .st-key-project_context_open {position:absolute !important;inset:0 !important;height:100% !important;width:100% !important;z-index:2;}
+    .st-key-project_context_empty .st-key-project_context_open button {opacity:0 !important;position:absolute !important;inset:0 !important;width:100% !important;height:100% !important;cursor:pointer;}
+    .st-key-project_context_empty:focus-within .project-context-card {outline:2px solid #8ea4ff;}
+    @media(max-width:1100px) {
+        .st-key-project_workspace .mdl-in {display:none !important;}
+    }
     </style>''',unsafe_allow_html=True)
     with st.container(key='project_workspace'):
         with st.container(key='project_back'):
             st.button('Projects  /  '+name,key='project_back_button',on_click=go_page,args=('projects',))
-        st.markdown('<div class="project-name">'+_html.escape(name)+'</div>',unsafe_allow_html=True)
+        with st.container(key='project_header'):
+            title_col,pin_col,menu_col=st.columns([16,1,1],vertical_alignment='center')
+            with title_col:
+                st.markdown('<div class="project-name">'+_html.escape(name)+'</div>',unsafe_allow_html=True)
+            with pin_col:
+                st.button(' ',icon=':material/push_pin:',key='project_pin',help='Unpin project' if project.get('pinned') else 'Pin project',on_click=toggle_project_pin,args=(name,))
+            with menu_col:
+                with st.popover('⋯',help='Project options'):
+                    st.caption(name)
+                    st.button('Back to Projects',key='project_menu_back',on_click=go_page,args=('projects',))
         if project.get('description'):
             st.markdown('<div class="project-description">'+_html.escape(project['description'])+'</div>',unsafe_allow_html=True)
-        chat_column,details_column=st.columns([1.65,1],gap='large')
-        with chat_column:
-            render_input_bar()
-            if not st.session_state['stored_groq_key']:
-                st.caption('Add your Groq API key in Settings to receive AI replies.')
-            conversations=[cid for cid,msgs in st.session_state['chat_sessions'].items() if msgs and st.session_state['chat_project'].get(cid)==name]
-            if conversations:
-                st.markdown('#### Chats')
-                for cid in reversed(conversations):
-                    st.button(chat_title(cid),key='project_chat_'+hashlib.sha256(cid.encode()).hexdigest()[:16],icon=':material/chat_bubble_outline:',use_container_width=True,on_click=open_project_chat,args=(cid,))
-            else:
-                st.markdown('<div class="project-empty">'+AI_NAME+' uses this project’s instructions and context each time you start a chat here.</div>',unsafe_allow_html=True)
-        with details_column:
-            with st.container(key='project_details'):
-                st.markdown('#### Instructions')
-                with st.expander('Add or edit instructions'):
-                    instructions=st.text_area('Project instructions',value=project['instructions'],key='project_instructions_'+project_token,placeholder='Tell '+AI_NAME+' how to respond in this project.')
-                    if st.button('Save instructions',key='project_save_instructions'):
-                        project['instructions']=instructions.strip()
-                        st.success('Instructions saved.')
-                st.divider()
-                st.markdown('#### Context')
-                st.caption('Add PDFs, documents, photos, or other files to reference in this project.')
-                uploads=st.file_uploader('Add context files',accept_multiple_files=True,key='project_context_'+project_token,label_visibility='collapsed')
-                for uploaded in uploads or []:
-                    data=uploaded.getvalue()
-                    if not any(f['name']==uploaded.name and f['data']==data for f in project['files']):
-                        project['files'].append({'name':uploaded.name,'type':uploaded.type or '', 'data':data})
-                    library_auto_save(uploaded.name,uploaded.type,data,'Project')
-                for f in project['files']:
-                    st.caption('📎 '+f['name'])
-                if project['files']:
-                    st.caption(str(len(project['files']))+' context file'+('s' if len(project['files'])!=1 else ''))
+        with st.container(key='project_content'):
+            chat_column,details_column=st.columns([1.6,1],gap='large')
+            with chat_column:
+                render_input_bar()
+                if not st.session_state['stored_groq_key']:
+                    st.caption('Add your Groq API key in Settings to receive AI replies.')
+                conversations=[cid for cid,msgs in st.session_state['chat_sessions'].items() if msgs and st.session_state['chat_project'].get(cid)==name]
+                if conversations:
+                    st.markdown('#### Chats')
+                    for cid in reversed(conversations):
+                        st.button(chat_title(cid),key='project_chat_'+hashlib.sha256(cid.encode()).hexdigest()[:16],icon=':material/chat_bubble_outline:',use_container_width=True,on_click=open_project_chat,args=(cid,))
+                else:
+                    st.markdown('<div class="project-empty"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H3l2.5-4A8.5 8.5 0 1 1 21 11.5z"/></svg>'+AI_NAME+' references the same knowledge every time you talk to it in this project.</div>',unsafe_allow_html=True)
+            with details_column:
+                with st.container(key='project_details'):
+                    label,action=st.columns([9,1],vertical_alignment='center')
+                    with label:st.markdown('<div class="project-section-label">Instructions</div>',unsafe_allow_html=True)
+                    with action,st.container(key='project_plus_instructions'):
+                        st.button(' ',icon=':material/add:',key='project_edit_instructions',help='Add or edit instructions',on_click=toggle_state,args=(instruction_flag,))
+                    st.markdown('<div class="project-instruction-summary">'+_html.escape(project['instructions'][:120] if project['instructions'] else 'Add instructions to tailor '+AI_NAME+'’s responses')+'</div>',unsafe_allow_html=True)
+                    if st.session_state[instruction_flag]:
+                        instructions=st.text_area('Project instructions',value=project['instructions'],key='project_instructions_'+project_token,placeholder='Tell '+AI_NAME+' how to respond in this project.')
+                        if st.button('Save instructions',key='project_save_instructions'):
+                            project['instructions']=instructions.strip()
+                            st.session_state[instruction_flag]=False
+                            st.rerun()
+                    st.divider()
+                    label,action=st.columns([9,1],vertical_alignment='center')
+                    with label:st.markdown('<div class="project-section-label">Context</div>',unsafe_allow_html=True)
+                    with action,st.container(key='project_plus_context'):
+                        st.button(' ',icon=':material/add:',key='project_add_context',help='Add context files',on_click=toggle_state,args=(context_flag,))
+                    if st.session_state[context_flag]:
+                        uploads=st.file_uploader('Add context files',accept_multiple_files=True,key='project_context_'+project_token,label_visibility='collapsed')
+                        for uploaded in uploads or []:
+                            data=uploaded.getvalue()
+                            if not any(f['name']==uploaded.name and f['data']==data for f in project['files']):
+                                project['files'].append({'name':uploaded.name,'type':uploaded.type or '', 'data':data})
+                            library_auto_save(uploaded.name,uploaded.type,data,'Project')
+                    if not project['files']:
+                        with st.container(key='project_context_empty'):
+                            st.markdown('<div class="project-context-card"><svg width="108" height="60" viewBox="0 0 108 60" fill="none" stroke="#686868"><rect x="9" y="22" width="34" height="32" rx="6" fill="#2c2c2c"/><rect x="40" y="18" width="34" height="36" rx="6" fill="#2c2c2c"/><rect x="66" y="5" width="34" height="38" rx="6" fill="#2c2c2c" transform="rotate(7 83 24)"/><path d="M16 30h19M16 35h15M16 40h18M47 27h18M47 32h15M75 14h16M75 19h14M75 24h16"/><rect x="70" y="39" width="18" height="18" rx="5" fill="#242424"/><path d="M79 43v10M74 48h10"/></svg>Add PDFs, documents, or other text to reference in this project.</div>',unsafe_allow_html=True)
+                            with st.container(key='project_context_open'):
+                                st.button('Add project context',key='project_context_card',on_click=toggle_state,args=(context_flag,),use_container_width=True)
+                    for f in project['files']:st.caption('📎 '+f['name'])
+                    if project['files']:st.caption(str(len(project['files']))+' context file'+('s' if len(project['files'])!=1 else ''))
 
 
 # ---------------- PROJECTS PAGE (from the video) ----------------
