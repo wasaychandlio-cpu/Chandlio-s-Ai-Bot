@@ -640,80 +640,93 @@ a,.stMarkdown a {color:var(--ch-accent)!important;}
    .replace("__SCHEME__", "light" if st.session_state["theme_choice"] == "Cloud Cream" else "dark"),
    unsafe_allow_html=True)
 
-if hasattr(st, "dialog"):
-    @st.dialog("Chandlio Settings", width="large")
-    def render_chandlio_settings():
-        sections = ["Account", "Billing", "Appearance", "Your Chandlio", "Capabilities", "Notifications", "Privacy", "Wellbeing", "Customize", "Code"]
-        left, right = st.columns([1, 2.7], gap="large")
-        with left:
-            st.text_input("Search settings", key="settings_search", placeholder="Search settings…")
-            for section in sections:
-                if st.button(section, key="settings_nav_"+section, use_container_width=True,
-                             type="primary" if st.session_state["settings_section"] == section else "secondary"):
-                    st.session_state["settings_section"] = section
-                    st.rerun()
-        with right:
-            section = st.session_state["settings_section"]
-            st.subheader(section)
-            if section == "Account":
-                st.caption("Your Chandlio workspace account")
-                st.info("This version runs with the existing local Streamlit session. Account sign-in and cross-device account management are not connected yet.")
-                st.text_input("Workspace name", value="Chandlio", disabled=True)
-                st.caption("Account settings are shown here. Sign-in and profile synchronization are not connected in this version.")
-            elif section == "Billing":
-                st.caption("Chandlio plan")
-                st.markdown("**Chandlio · Free**")
-                st.write("You are using the existing free app configuration.")
-                st.info("Billing, subscriptions and payment management are not connected in this version.")
-            elif section == "Appearance":
-                st.caption("Choose how Chandlio looks. Your page layout and chat structure stay the same.")
-                st.selectbox("Colour theme", list(CHANDLIO_THEMES.keys()), key="theme_choice")
-                st.caption("Midnight Ember is the default theme.")
-                st.markdown("**Preview colours**")
-                preview = CHANDLIO_THEMES[st.session_state["theme_choice"]]
-                st.markdown("<div style='display:flex;gap:8px;align-items:center;padding:12px;background:{bg};border:1px solid {border};border-radius:12px'><span style='background:{sidebar};padding:12px;border-radius:8px;color:{text}'>Sidebar</span><span style='background:{card};padding:12px;border-radius:8px;color:{text}'>Chat panel</span><span style='background:{accent};padding:12px;border-radius:8px;color:#fff'>Accent</span></div>".format(bg=preview['bg'],border=preview['border'],sidebar=preview['sidebar'],card=preview['card'],text=preview['text'],accent=preview['accent']), unsafe_allow_html=True)
-            elif section == "Your Chandlio":
-                st.caption("Set instructions that guide Chandlio's responses in this session.")
-                st.text_area("Custom instructions", key="custom_instructions", height=150, placeholder="For example: explain things step by step and keep answers concise.")
-                st.caption("Instructions are kept in this Streamlit session; permanent account memory is not configured.")
-            elif section == "Capabilities":
-                st.toggle("Web search", key="web_search", help="Use the existing web-search setting in this app.")
-                st.caption("Other integrations and connected apps are not configured in this version.")
-            elif section == "Notifications":
-                st.toggle("Show in-app notifications", key="notifications_enabled")
-                st.caption("Controls app notification preference only; browser push notifications are not configured.")
-            elif section == "Privacy":
-                st.markdown("**Your data in this version**")
-                st.write("Chats and preferences are held in the current Streamlit session. Persistent encrypted account storage, export controls and deletion workflows are not connected yet.")
-                st.caption("Do not enter passwords, payment details or other sensitive information into this prototype.")
-            elif section == "Wellbeing":
-                st.toggle("Reduce interface motion", key="reduce_motion")
-                st.caption("This preference is saved for the current session. The current interface has minimal animation.")
-            elif section == "Customize":
-                st.caption("Personalize the assistant's response style.")
-                st.selectbox("Response style", ["Balanced", "Concise", "Detailed", "Step by step"], key="response_style", index=0)
-                st.caption("The selected style is a preference; custom prompt integration can be added without changing the app layout.")
-            elif section == "Code":
-                st.markdown("**Model connection**")
-                st.write("Provider: Groq")
-                st.write("Model: openai/gpt-oss-120b")
-                st.caption("The existing model and API connection are unchanged.")
-            st.divider()
-            if st.button("Close settings", key="close_chandlio_settings", use_container_width=True):
-                st.session_state["show_settings"] = False
-                st.rerun()
+def render_chandlio_settings():
+    st.markdown("""
+    <style>
+      [data-testid="stMainBlockContainer"] {
+        max-width: 100% !important;
+        padding: 1.25rem 2rem 2rem !important;
+      }
+      .ch-settings-title {
+        font-size: 1.85rem; font-weight: 650; line-height: 1.2;
+        padding: .2rem 0 1.15rem; margin-bottom: 1.25rem;
+        border-bottom: 1px solid #3d3d3d;
+      }
+      .ch-settings-nav [data-testid="stButton"] button {
+        text-align: left; justify-content: flex-start;
+        border-radius: 10px; min-height: 2.75rem;
+      }
+    </style>
+    """, unsafe_allow_html=True)
+    title_col, close_col = st.columns([12, 1])
+    with title_col:
+        st.markdown("<div class='ch-settings-title'>Settings</div>", unsafe_allow_html=True)
+    with close_col:
+        if st.button("✕", key="close_chandlio_settings_top", help="Close settings"):
+            st.session_state["show_settings"] = False
+            st.rerun()
 
-    if st.session_state.get("show_settings"):
-        render_chandlio_settings()
-else:
-    # Fallback for older Streamlit versions without st.dialog.
-    if st.session_state.get("show_settings"):
-        with st.expander("Chandlio Settings", expanded=True):
-            st.selectbox("Colour theme", list(CHANDLIO_THEMES.keys()), key="theme_choice")
-            st.text_area("Custom instructions", key="custom_instructions")
-            if st.button("Close settings"):
-                st.session_state["show_settings"] = False
+    sections = ["Account", "Billing", "Appearance", "Your Chandlio", "Capabilities", "Notifications", "Privacy", "Wellbeing", "Customize", "Code"]
+    left, right = st.columns([1, 2.7], gap="large")
+    with left:
+        st.text_input("Search settings", key="settings_search", placeholder="Search settings…")
+        for section in sections:
+            if st.button(section, key="settings_nav_"+section, use_container_width=True,
+                         type="primary" if st.session_state["settings_section"] == section else "secondary"):
+                st.session_state["settings_section"] = section
                 st.rerun()
+    with right:
+        section = st.session_state["settings_section"]
+        st.subheader(section)
+        if section == "Account":
+            st.caption("Your Chandlio workspace account")
+            st.info("This version runs with the existing local Streamlit session. Account sign-in and cross-device account management are not connected yet.")
+            st.text_input("Workspace name", value="Chandlio", disabled=True)
+            st.caption("Account settings are shown here. Sign-in and profile synchronization are not connected in this version.")
+        elif section == "Billing":
+            st.caption("Chandlio plan")
+            st.markdown("**Chandlio · Free**")
+            st.write("You are using the existing free app configuration.")
+            st.info("Billing, subscriptions and payment management are not connected in this version.")
+        elif section == "Appearance":
+            st.caption("Choose how Chandlio looks. Your page layout and chat structure stay the same.")
+            st.selectbox("Colour theme", list(CHANDLIO_THEMES.keys()), key="theme_choice")
+            st.caption("Midnight Ember is the default theme.")
+            st.markdown("**Preview colours**")
+            preview = CHANDLIO_THEMES[st.session_state["theme_choice"]]
+            st.markdown("<div style='display:flex;gap:8px;align-items:center;padding:12px;background:{bg};border:1px solid {border};border-radius:12px'><span style='background:{sidebar};padding:12px;border-radius:8px;color:{text}'>Sidebar</span><span style='background:{card};padding:12px;border-radius:8px;color:{text}'>Chat panel</span><span style='background:{accent};padding:12px;border-radius:8px;color:#fff'>Accent</span></div>".format(bg=preview['bg'],border=preview['border'],sidebar=preview['sidebar'],card=preview['card'],text=preview['text'],accent=preview['accent']), unsafe_allow_html=True)
+        elif section == "Your Chandlio":
+            st.caption("Set instructions that guide Chandlio's responses in this session.")
+            st.text_area("Custom instructions", key="custom_instructions", height=150, placeholder="For example: explain things step by step and keep answers concise.")
+            st.caption("Instructions are kept in this Streamlit session; permanent account memory is not configured.")
+        elif section == "Capabilities":
+            st.toggle("Web search", key="web_search", help="Use the existing web-search setting in this app.")
+            st.caption("Other integrations and connected apps are not configured in this version.")
+        elif section == "Notifications":
+            st.toggle("Show in-app notifications", key="notifications_enabled")
+            st.caption("Controls app notification preference only; browser push notifications are not configured.")
+        elif section == "Privacy":
+            st.markdown("**Your data in this version**")
+            st.write("Chats and preferences are held in the current Streamlit session. Persistent encrypted account storage, export controls and deletion workflows are not connected yet.")
+            st.caption("Do not enter passwords, payment details or other sensitive information into this prototype.")
+        elif section == "Wellbeing":
+            st.toggle("Reduce interface motion", key="reduce_motion")
+            st.caption("This preference is saved for the current session. The current interface has minimal animation.")
+        elif section == "Customize":
+            st.caption("Personalize the assistant's response style.")
+            st.selectbox("Response style", ["Balanced", "Concise", "Detailed", "Step by step"], key="response_style", index=0)
+            st.caption("The selected style is a preference; custom prompt integration can be added without changing the app layout.")
+        elif section == "Code":
+            st.markdown("**Model connection**")
+            st.write("Provider: Groq")
+            st.write("Model: openai/gpt-oss-120b")
+            st.caption("The existing model and API connection are unchanged.")
+    st.divider()
+    st.caption("Chandlio settings")
+
+if st.session_state.get("show_settings"):
+    render_chandlio_settings()
+    st.stop()
 
 # ---------------- JAVASCRIPT (shortcuts, top-bar offset, auto-grow, auto-scroll) ----------------
 KEYS_AND_SCROLL_JS = """
