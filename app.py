@@ -884,126 +884,162 @@ def settings_dialog():
                 "Notifications", "Privacy", "Wellbeing", "Customize", "Code"]
     st.markdown("""
     <style>
-    [data-testid="stDialog"]:has(.st-key-settings_shell) [role="dialog"] {
-        width: min(1600px, 86vw) !important; max-width: 92vw !important;
-        max-height: 90vh !important; background: #202020 !important;
-        border: 1px solid #383838 !important; border-radius: 14px !important;
-        padding: 0 !important; overflow: hidden !important;
+    /* Large, centered settings surface matching the supplied reference */
+    [data-testid="stDialog"] { align-items:center !important; justify-content:center !important; }
+    [data-testid="stDialog"] [role="dialog"] {
+        width:94vw !important; max-width:94vw !important; min-width: min(94vw, 1100px) !important;
+        height:92vh !important; max-height:92vh !important; margin:auto !important;
+        padding:0 !important; overflow:hidden !important; background:#202020 !important;
+        border:1px solid #383838 !important; border-radius:16px !important;
+        box-shadow:0 18px 60px rgba(0,0,0,.55) !important;
     }
-    [data-testid="stDialog"]:has(.st-key-settings_shell) [data-testid="stVerticalBlock"] { gap: .45rem !important; }
-    [data-testid="stDialog"]:has(.st-key-settings_shell) [data-testid="stDialogHeader"] {
-        background: #202020 !important; padding: 0 !important; min-height: 0 !important;
+    [data-testid="stDialog"] [data-testid="stDialogHeader"] {display:none !important;}
+    [data-testid="stDialog"] [data-testid="stDialogContent"] {
+        padding:0 !important; height:100% !important; max-height:92vh !important; overflow:hidden !important;
     }
-    [data-testid="stDialog"]:has(.st-key-settings_shell) [data-testid="stDialogHeader"] h2 { display:none !important; }
-    [data-testid="stDialog"]:has(.st-key-settings_shell) button[aria-label="Close"] { display:none !important; }
-    .st-key-settings_close button { background:transparent !important; border:0 !important; color:#eee !important;
-        font-size:1.35rem !important; min-height:1.8rem !important; padding:0 .35rem !important; }
-    .st-key-settings_shell { padding: 0 22px 20px 22px; }
-    .st-key-settings_title { padding: 13px 0 10px 0; border-bottom: 1px solid #343434; margin-bottom: 10px; }
-    .st-key-settings_title h3 { font-size: 1.05rem !important; font-weight: 600 !important; margin: 0 !important; color:#f4f4f4 !important; }
-    .st-key-settings_nav { border-right: 1px solid #343434; padding-right: 16px; min-height: 72vh; }
-    .st-key-settings_nav button { width:100%; justify-content:flex-start !important; text-align:left !important;
-        background:transparent !important; border:0 !important; color:#d5d5d5 !important;
-        border-radius:8px !important; min-height:2.1rem !important; padding:.38rem .65rem !important; }
-    .st-key-settings_nav button:hover { background:#2d2d2d !important; }
-    .st-key-settings_nav [data-testid="stBaseButton-primary"] { background:#3a3a3a !important; color:#fff !important; }
-    .st-key-settings_content { padding: 4px 14px 22px 10px; max-height: 76vh; overflow-y:auto; }
-    .st-key-settings_content h3 { font-size:1.15rem !important; margin:.35rem 0 1rem !important; }
-    [data-testid="stDialog"]:has(.st-key-settings_shell) input,
-    [data-testid="stDialog"]:has(.st-key-settings_shell) textarea,
-    [data-testid="stDialog"]:has(.st-key-settings_shell) [data-baseweb="select"] > div {
-        background:#292929 !important; border:1px solid #414141 !important; color:#f2f2f2 !important;
+    [data-testid="stDialog"] [data-testid="stVerticalBlock"] {gap:.35rem !important;}
+    .st-key-settings_shell {height:100%; padding:0 !important; gap:0 !important;}
+    .st-key-settings_top {padding:12px 22px 10px !important; border-bottom:1px solid #343434 !important;}
+    .st-key-settings_top [data-testid="stHorizontalBlock"] {align-items:center !important;}
+    .st-key-settings_heading {font-size:1.35rem;font-weight:650;color:#f1f1f1;padding:2px 0;}
+    .st-key-settings_close button {background:transparent !important;border:0 !important;color:#eee !important;
+        font-size:1.7rem !important;min-height:2rem !important;padding:0 .4rem !important;}
+    .st-key-settings_body {height:calc(92vh - 58px); padding:0 !important; gap:0 !important;}
+    .st-key-settings_nav {height:calc(92vh - 58px); overflow-y:auto !important; padding:20px 18px 24px 22px !important;
+        border-right:1px solid #343434 !important;}
+    .st-key-settings_nav [data-testid="stTextInput"] {margin-bottom:12px !important;}
+    .st-key-settings_nav input {background:#292929 !important;border:1px solid #414141 !important;border-radius:11px !important;
+        min-height:2.55rem !important;color:#eee !important;}
+    .st-key-settings_nav button {width:100% !important;display:flex !important;justify-content:flex-start !important;
+        text-align:left !important;background:transparent !important;border:0 !important;color:#e1e1e1 !important;
+        border-radius:10px !important;min-height:2.65rem !important;padding:.45rem .8rem !important;font-size:1rem !important;}
+    .st-key-settings_nav button p {text-align:left !important;}
+    .st-key-settings_nav button:hover {background:#303030 !important;}
+    .st-key-settings_nav [data-testid="stBaseButton-primary"] {background:#3b3b3b !important;color:#fff !important;}
+    .st-key-settings_content {height:calc(92vh - 58px); overflow-y:auto !important; padding:24px 30px 38px 24px !important;}
+    .st-key-settings_content h3 {font-size:1.35rem !important;font-weight:650 !important;margin:0 0 22px !important;color:#f2f2f2 !important;}
+    .st-key-settings_content h4 {font-size:1.05rem !important;margin:20px 0 12px !important;}
+    .st-key-settings_content [data-testid="stTextInput"], .st-key-settings_content [data-testid="stSelectbox"],
+    .st-key-settings_content [data-testid="stTextArea"] {margin:0 !important;}
+    .st-key-settings_content input, .st-key-settings_content textarea,
+    .st-key-settings_content [data-baseweb="select"] > div {background:#292929 !important;border:1px solid #414141 !important;
+        color:#f2f2f2 !important;border-radius:10px !important;}
+    .st-key-settings_content label, .st-key-settings_content p {color:#dedede;}
+    .st-key-settings_content [data-testid="stCaptionContainer"] p {color:#999 !important;}
+    .settings-row {display:grid;grid-template-columns:minmax(230px, 1fr) minmax(240px, 1.2fr);gap:28px;
+        align-items:center;padding:15px 0;border-bottom:1px solid #343434;}
+    .settings-row-title {font-size:1rem;color:#e6e6e6;font-weight:500;}
+    .settings-row-note {font-size:.88rem;color:#999;margin-top:4px;}
+    .settings-section-note {color:#999;font-size:.9rem;margin:-12px 0 18px;}
+    .settings-profile {display:flex;align-items:center;gap:18px;padding:12px 0 20px;border-bottom:1px solid #343434;margin-bottom:4px;}
+    .settings-avatar {width:58px;height:58px;border-radius:50%;background:#383838;display:flex;align-items:center;justify-content:center;
+        font-size:23px;color:#eee;flex-shrink:0;}
+    @media(max-width:900px){
+      [data-testid="stDialog"] [role="dialog"]{width:96vw !important;max-width:96vw !important;min-width:96vw !important;height:94vh !important;max-height:94vh !important;}
+      .st-key-settings_nav{padding:14px 10px !important;}
+      .st-key-settings_content{padding:18px 14px !important;}
+      .settings-row{grid-template-columns:1fr;gap:8px;}
     }
-    [data-testid="stDialog"]:has(.st-key-settings_shell) label,
-    [data-testid="stDialog"]:has(.st-key-settings_shell) p { color:#dedede; }
-    .settings-muted { color:#9c9c9c; font-size:.88rem; }
     </style>
     """, unsafe_allow_html=True)
 
     with st.container(key="settings_shell"):
-        title_col, close_col = st.columns([12, 1])
-        with title_col:
-            st.markdown("<div class='st-key-settings_title'><h3>Settings</h3></div>", unsafe_allow_html=True)
-        with close_col:
-            with st.container(key="settings_close"):
-                if st.button("×", key="settings_close_button", help="Close settings"):
-                    st.session_state["settings_open"] = False
-                    st.rerun()
-        nav_col, content_col = st.columns([0.88, 2.55], gap="large")
-        with nav_col:
-            with st.container(key="settings_nav"):
-                st.text_input("Search", key="settings_search", placeholder="Search settings…", label_visibility="collapsed")
-                q = st.session_state.get("settings_search", "").strip().lower()
-                shown = [x for x in sections if not q or q in x.lower()]
-                for section in shown:
-                    if st.button(section, key="settings_section_" + section,
-                                  type="primary" if st.session_state.get("settings_section") == section else "secondary",
-                                  use_container_width=True):
-                        st.session_state["settings_section"] = section
+        with st.container(key="settings_top"):
+            head, close = st.columns([12, 1], vertical_alignment="center")
+            with head:
+                st.markdown("<div class='st-key-settings_heading'>Settings</div>", unsafe_allow_html=True)
+            with close:
+                with st.container(key="settings_close"):
+                    if st.button("×", key="settings_close_button", help="Close settings"):
+                        st.session_state["settings_open"] = False
                         st.rerun()
-        with content_col:
-            with st.container(key="settings_content"):
-                section = st.session_state.get("settings_section", "Account")
-                st.subheader(section)
-                if section == "Account":
-                    st.caption("Profile")
-                    c1, c2 = st.columns([1, 4])
-                    with c1:
-                        st.markdown("<div style='width:58px;height:58px;border-radius:50%;background:#414141;display:flex;align-items:center;justify-content:center;font-size:24px;color:#eee'>C</div>", unsafe_allow_html=True)
-                    with c2:
-                        st.caption("Profile photo")
-                        st.caption("PNG, JPEG, or WebP up to 10MB.")
-                    st.text_input("Full name", key="profile_full_name")
-                    st.text_input("What should Chandlio call you?", key="profile_call_name")
-                    st.selectbox("What best describes your work?", ["Other", "Student", "Developer", "Researcher", "Business owner", "Designer"], key="profile_work")
-                    st.text_input("Email", value=ACCOUNT_EMAIL, disabled=True)
-                    st.caption("Profile and sign-in synchronization are not connected in this local app version.")
-                    st.divider()
-                    st.markdown("**Where you're logged in**")
-                    st.caption("This browser session · Current device")
-                elif section == "Billing":
-                    st.markdown("**Chandlio · Free**")
-                    st.write("Your current workspace plan")
-                    st.info("Billing, subscriptions and payment management are not connected in this version.")
-                elif section == "Appearance":
-                    st.caption("Choose how Chandlio looks. Your workspace layout stays the same.")
-                    st.markdown("**Current theme**")
-                    st.markdown("<div style='display:inline-flex;align-items:center;gap:10px;background:#292929;border:1px solid #414141;border-radius:10px;padding:10px 14px'><span style='width:13px;height:13px;border-radius:50%;background:#d97757;display:inline-block'></span><span>Midnight Ember</span></div>", unsafe_allow_html=True)
-                    st.caption("Midnight Ember is the active default theme.")
-                elif section == "Your Chandlio":
-                    st.caption("Set instructions that guide Chandlio's responses.")
-                    st.text_area("Custom instructions", key="custom_instructions", height=160,
-                                 placeholder="For example: explain things step by step and keep answers concise.")
-                    st.caption("These instructions are applied to new responses in this session.")
-                elif section == "Capabilities":
-                    st.toggle("Web search", key="web_search", help="Use the existing web-search setting in this app.")
-                    st.caption("Other connected apps and integrations are not configured yet.")
-                elif section == "Notifications":
-                    st.toggle("In-app notifications", key="notifications_enabled")
-                    st.caption("Browser push notifications are not configured in this version.")
-                elif section == "Privacy":
-                    st.markdown("**Your data**")
-                    st.write("Chats and preferences are held in the current Streamlit session. Persistent account storage, export and deletion workflows are not connected yet.")
-                elif section == "Wellbeing":
-                    st.toggle("Reduce interface motion", key="reduce_motion")
-                    st.caption("The current interface uses minimal animation.")
-                elif section == "Customize":
-                    st.caption("Choose how Chandlio responds.")
-                    st.selectbox("Response style", ["Balanced", "Concise", "Detailed", "Step by step"], key="response_style")
-                    st.caption("This preference is applied to new responses.")
-                elif section == "Code":
-                    st.markdown("**Model connection**")
-                    st.caption("Provider: Groq · Model: openai/gpt-oss-120b")
-                    new_key = st.text_input("Groq API Key", value=st.session_state["stored_groq_key"],
-                                            type="password", placeholder="gsk_...")
-                    st.caption("Your key is kept only for this Streamlit session.")
-                    if st.button("Save API key", key="save_settings", type="primary"):
-                        if new_key.strip():
-                            st.session_state["stored_groq_key"] = new_key.strip()
-                            st.session_state["toast"] = "Settings saved."
+        with st.container(key="settings_body"):
+            nav_col, content_col = st.columns([0.92, 3.08], gap="small")
+            with nav_col:
+                with st.container(key="settings_nav"):
+                    st.text_input("Search", key="settings_search", placeholder="Search", label_visibility="collapsed")
+                    q = st.session_state.get("settings_search", "").strip().lower()
+                    shown = [x for x in sections if not q or q in x.lower()]
+                    for section in shown:
+                        icons = {"Account":":material/person_outline:","Billing":":material/credit_card:","Appearance":":material/palette:",
+                                 "Your Chandlio":":material/psychology:","Capabilities":":material/work:","Notifications":":material/notifications:",
+                                 "Privacy":":material/shield:","Wellbeing":":material/favorite_border:","Customize":":material/tune:","Code":":material/code:"}
+                        if section in ("Appearance", "Customize", "Code"):
+                            st.divider()
+                        if st.button(section, key="settings_section_" + section,
+                                     icon=icons[section],
+                                     type="primary" if st.session_state.get("settings_section") == section else "secondary",
+                                     use_container_width=True):
+                            st.session_state["settings_section"] = section
                             st.rerun()
-                        else:
-                            st.error("Please paste your Groq API key.")
+            with content_col:
+                with st.container(key="settings_content"):
+                    section = st.session_state.get("settings_section", "Account")
+                    st.subheader("Profile" if section == "Account" else section)
+                    if section == "Account":
+                        st.markdown("<div class='settings-profile'><div class='settings-avatar'>C</div><div><div class='settings-row-title'>Profile photo</div><div class='settings-row-note'>PNG, JPEG, or WebP up to 10MB.</div></div></div>", unsafe_allow_html=True)
+                        for label, key, default in [("Full name", "profile_full_name", "Chandlio User"), ("What should Chandlio call you?", "profile_call_name", "Chandlio User")]:
+                            left, right = st.columns([1.35, 1.65], vertical_alignment="center")
+                            with left: st.markdown(f"<div class='settings-row-title'>{label}</div>", unsafe_allow_html=True)
+                            with right: st.text_input(label, key=key, placeholder=default, label_visibility="collapsed")
+                            st.divider()
+                        left, right = st.columns([1.35, 1.65], vertical_alignment="center")
+                        with left: st.markdown("<div class='settings-row-title'>What best describes your work?</div>", unsafe_allow_html=True)
+                        with right: st.selectbox("Work", ["Other", "Student", "Developer", "Researcher", "Business owner", "Designer"], key="profile_work", label_visibility="collapsed")
+                        st.divider()
+                        left, right = st.columns([1.35, 1.65], vertical_alignment="center")
+                        with left: st.markdown("<div class='settings-row-title'>Email</div>", unsafe_allow_html=True)
+                        with right: st.text_input("Email", value=ACCOUNT_EMAIL, disabled=True, label_visibility="collapsed")
+                        st.divider()
+                        st.markdown("**Where you’re logged in**")
+                        st.caption("This browser session · Current device")
+                        st.markdown("<div class='settings-row-note'>Device　　　　　　　　　　　 Location　　　　　　　　　 Signed in　　　　　　　　 Last active<br>Chrome (current)　　　　　　 Current device　　　　 This session　　　　　　 Active now</div>", unsafe_allow_html=True)
+                        st.markdown("**Trusted devices**")
+                        st.caption("Device management will be available when Chandlio account sign-in is connected.")
+                    elif section == "Billing":
+                        st.markdown("**Chandlio · Free**")
+                        st.caption("Your current workspace plan")
+                        st.divider()
+                        st.info("Billing, subscriptions and payment management are not connected in this version.")
+                    elif section == "Appearance":
+                        st.caption("Choose how Chandlio looks. Your workspace layout and chat structure stay the same.")
+                        st.markdown("**Colour theme**")
+                        st.selectbox("Colour theme", list(CHANDLIO_THEMES.keys()), key="theme_choice", label_visibility="collapsed")
+                        st.caption("Midnight Ember is the default theme. Changing the theme changes colours only.")
+                        st.markdown("**Preview**")
+                        st.markdown("<div style='display:flex;gap:10px;flex-wrap:wrap;padding:16px;background:#191919;border:1px solid #3d3d3d;border-radius:12px'><span style='background:#1f1f1e;padding:16px 24px;border-radius:8px'>Navigation</span><span style='background:#262626;padding:16px 24px;border-radius:8px'>Workspace</span><span style='background:#d97757;color:#fff;padding:16px 24px;border-radius:8px'>Accent</span></div>", unsafe_allow_html=True)
+                    elif section == "Your Chandlio":
+                        st.caption("Set instructions that guide Chandlio's responses.")
+                        st.text_area("Custom instructions", key="custom_instructions", height=180, placeholder="For example: explain things step by step and keep answers concise.")
+                        st.caption("These instructions are applied to new responses in this session.")
+                    elif section == "Capabilities":
+                        st.toggle("Web search", key="web_search", help="Use the existing web-search setting in this app.")
+                        st.caption("Other connected apps and integrations are not configured yet.")
+                    elif section == "Notifications":
+                        st.toggle("In-app notifications", key="notifications_enabled")
+                        st.caption("Browser push notifications are not configured in this version.")
+                    elif section == "Privacy":
+                        st.markdown("**Your data**")
+                        st.write("Chats and preferences are held in the current Streamlit session. Persistent account storage, export and deletion workflows are not connected yet.")
+                    elif section == "Wellbeing":
+                        st.toggle("Reduce interface motion", key="reduce_motion")
+                        st.caption("The current interface uses minimal animation.")
+                    elif section == "Customize":
+                        st.caption("Choose how Chandlio responds.")
+                        st.selectbox("Response style", ["Balanced", "Concise", "Detailed", "Step by step"], key="response_style")
+                        st.caption("This preference is applied to new responses.")
+                    elif section == "Code":
+                        st.markdown("**Model connection**")
+                        st.caption("Provider: Groq · Model: openai/gpt-oss-120b")
+                        new_key = st.text_input("Groq API Key", value=st.session_state["stored_groq_key"], type="password", placeholder="gsk_...")
+                        st.caption("Your key is kept only for this Streamlit session.")
+                        if st.button("Save API key", key="save_settings", type="primary"):
+                            if new_key.strip():
+                                st.session_state["stored_groq_key"] = new_key.strip()
+                                st.session_state["toast"] = "Settings saved."
+                                st.rerun()
+                            else:
+                                st.error("Please paste your Groq API key.")
 
 # ---------------- CREATE A PROJECT DIALOG (from the video) ----------------
 @st.dialog("Create a project")
