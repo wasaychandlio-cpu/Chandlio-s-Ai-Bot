@@ -16,51 +16,53 @@ MODEL_LABEL, MODEL_NOTE = "gpt-oss-120b", "Fast"
 ACCOUNT_EMAIL = "mabdulwasay81@gmail.com"   # <- shown at the top of the account menu
 
 # ---------------- LOGO ----------------
-# Option A: put a logo.png (or .jpg/.webp) next to app.py.
-# Option B: paste your long base64 string between the quotes below (copy it from your old app.py).
-# If neither is available/valid, the Claude-style starburst is used, so you never get a broken image.
-_LOGO_B64 = ""   # <<< PASTE YOUR OLD LOGO STRING HERE, between the quotes
+# Put your logo image (png / jpg / jpeg / webp) in the same folder as app.py.
+# Any file whose name starts with "logo" is accepted (logo.png, logo.jpg, logo.png.png ...).
+# If nothing valid is found, the Claude-style starburst is shown, so you never get a broken image.
+_LOGO_B64 = ""   # optional: paste a base64 logo string here instead of using a file
 
 _STAR_SVG = ('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">'
              '<g stroke="#d97757" stroke-width="3.2" stroke-linecap="round">'
              + "".join(f'<line x1="20" y1="20" x2="20" y2="4" transform="rotate({a} 20 20)"/>' for a in range(0, 360, 30))
              + "</g></svg>")
 
+def _sniff_mime(raw):
+    if raw[:3] == b"\xff\xd8\xff":
+        return "image/jpeg"
+    if raw[:8] == b"\x89PNG\r\n\x1a\n":
+        return "image/png"
+    if raw[:4] == b"RIFF" and raw[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
 def _load_logo():
     try:
-        here = pathlib.Path(__file__).parent
-        for n, mime in (("logo.png", "image/png"), ("logo.jpg", "image/jpeg"),
-                        ("logo.jpeg", "image/jpeg"), ("logo.webp", "image/webp")):
-            p = here / n
-            if p.exists():
-                return f"data:{mime};base64," + base64.b64encode(p.read_bytes()).decode()
+        folders = [pathlib.Path(__file__).resolve().parent, pathlib.Path.cwd()]
+        exts = (".png", ".jpg", ".jpeg", ".webp")
+        for folder in folders:
+            if not folder.is_dir():
+                continue
+            files = sorted(p for p in folder.iterdir()
+                           if p.is_file() and p.name.lower().startswith("logo") and p.name.lower().endswith(exts))
+            for p in files:
+                raw = p.read_bytes()
+                mime = _sniff_mime(raw)
+                if mime:
+                    return f"data:{mime};base64," + base64.b64encode(raw).decode()
     except Exception:
         pass
     return None
 
-def _valid_logo(b64):
-    """True only if the pasted string really decodes to an image."""
+def _b64_logo_uri(b64):
     try:
         raw = base64.b64decode(b64.strip(), validate=True)
     except Exception:
-        return False
-    try:
-        from PIL import Image
-        Image.open(io.BytesIO(raw)).verify()
-        return True
-    except ImportError:
-        return b64.strip().startswith("iVBOR")
-    except Exception:
-        return False
+        return None
+    mime = _sniff_mime(raw)
+    return f"data:{mime};base64,{b64.strip()}" if mime else None
 
 _STAR_FALLBACK_URI = "data:image/svg+xml;base64," + base64.b64encode(_STAR_SVG.encode()).decode()
-_file_logo = _load_logo()
-if _file_logo:
-    STAR_URI = _file_logo
-elif _LOGO_B64.strip() and _valid_logo(_LOGO_B64):
-    STAR_URI = "data:image/png;base64," + _LOGO_B64.strip()
-else:
-    STAR_URI = _STAR_FALLBACK_URI
+STAR_URI = _load_logo() or (_b64_logo_uri(_LOGO_B64) if _LOGO_B64.strip() else None) or _STAR_FALLBACK_URI
 
 st.markdown("""
 <style>
@@ -87,7 +89,7 @@ h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 { color: #ffffff !imp
     border-radius: 12px; padding: 6px 16px; font-size: .95rem; }
 .hero { font-family: var(--serif); font-weight: 400; font-size: 3rem; color: #f5f4ef;
     display: flex; align-items: center; justify-content: center; gap: .9rem; margin: 0 0 1.8rem; line-height: 1.1; }
-.hero img { height: 64px; width: auto; }
+.hero img { height: 64px; width: auto; border-radius: 0 !important; mix-blend-mode: screen; }
 
 /* ---------- Chat messages (user = box, assistant = plain serif text) ---------- */
 [data-testid="stChatMessage"] { background: transparent !important; border: none !important; padding: .4rem 0 !important; }
@@ -505,7 +507,8 @@ def make_title(user_text, answer):
     convo = f"User: {user_text[:500]}\n\nAssistant: {answer[:500]}"
     for model, tokens in (("llama-3.1-8b-instant", 24), ("openai/gpt-oss-120b", 400)):
         try:
-            r = ChatGroq(model=model, temperature=0.2, max_tokens=tokens).invoke(
+            r = ChatGroq(model=model, temperature=0.2, max_tokens=tokens,
+                         api_key=st.session_state["stored_groq_key"]).invoke(
                 [("system", system), ("user", convo)])
             title = (r.content or "").strip().splitlines()[0].strip().strip("\"'“”‘’*#").rstrip(".").strip()
             if title:
@@ -559,7 +562,6 @@ def open_settings():
 
 def logout():
     st.session_state["stored_groq_key"] = ""
-    os.environ.pop("GROQ_API_KEY", None)
     st.session_state["acct_view"] = "main"
     st.session_state["toast"] = "Logged out."
 
@@ -650,7 +652,6 @@ def settings_dialog():
     if st.button("Save", key="save_settings", type="primary"):
         if new_key.strip():
             st.session_state["stored_groq_key"] = new_key.strip()
-            os.environ["GROQ_API_KEY"] = new_key.strip()
             st.session_state["toast"] = "Settings saved."
             st.rerun()
         else:
@@ -1154,7 +1155,7 @@ st.markdown(
 
 try:
     from langchain_groq import ChatGroq
-    llm = ChatGroq(model="openai/gpt-oss-120b", temperature=0.3, max_tokens=2048)
+    llm = ChatGroq(model="openai/gpt-oss-120b", temperature=0.3, max_tokens=2048, api_key=active_key)
 
     if st.session_state["show_workspace"]:
         chat_pane, workspace_pane = st.columns([1, 1], gap="large")
@@ -1210,7 +1211,7 @@ try:
             with st.chat_message("assistant"):
                 with st.spinner("Thinking..."):
                     lower_prompt = prompt.lower()
-                    if "switzerland" in lower_prompt or "swiss" in lower_prompt or "pictures" in lower_prompt:
+                    if "switzerland" in lower_prompt or "swiss" in lower_prompt:
                         answer = "Here are some views of Switzerland:"
                         found_images = [b for b in (fetch_wiki_image(t) for t in
                                         ["Matterhorn", "Jungfrau", "Lake_Lucerne"]) if b]
